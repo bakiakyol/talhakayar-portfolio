@@ -15,6 +15,14 @@
     <meta name="twitter:card" content="summary" />
     <meta name="twitter:title" content="Talha Kayar | Electrical & Electronics Engineer" />
     <meta name="twitter:description" content="Electrical & Electronics Engineering senior at METU specializing in Wireless Communications, Signal Processing, and GNSS-free positioning." />
+
+    <!-- Inline critical CSS: paints the dark background immediately, before the
+         bundled stylesheet/JS loads — otherwise the browser's default white
+         background shows for a moment on first paint (worst in `vite dev`,
+         where styles are injected by JS instead of a <link> tag). -->
+    <style>
+      html, body { background: #0a0a0f; margin: 0; }
+    </style>
   </head>
   <body>
     <div id="root"></div>

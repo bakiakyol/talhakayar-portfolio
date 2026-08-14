@@ -225,10 +225,14 @@ const Hero = () => {
   };
 
   return (
-    <section id="hero" style={{ height: '100vh', width: '100vw', position: 'relative' }}>
+    <section id="hero" style={{ height: '100vh', width: '100%', position: 'relative' }}>
       <BootOverlay onDone={() => setIntroDone(true)} />
 
-      <div style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100vh', zIndex: 0 }}>
+      {/* pointerEvents: 'none' — this canvas is decorative only (OrbitControls has
+          every user interaction disabled already), so it must never intercept touch
+          input. Without this, mobile browsers treat a touch-drag here as "interact
+          with the 3D view" instead of "scroll the page", trapping the user on Hero. */}
+      <div style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100vh', zIndex: 0, pointerEvents: 'none' }}>
         <Canvas camera={{ position: [0, 0, 5], fov: 45 }} dpr={1}>
           <Scene />
         </Canvas>

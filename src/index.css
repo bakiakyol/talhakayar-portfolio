@@ -1,0 +1,105 @@
+:root {
+  --bg-dark: #0a0a0f;
+  --text-main: #f0f0f0;
+  --text-muted: #a0a0b0;
+  --neon-blue: #00d2ff;
+  --neon-purple: #9d4edd;
+  --glass-bg: rgba(20, 20, 30, 0.6);
+  --glass-border: rgba(255, 255, 255, 0.1);
+  font-family: 'Inter', system-ui, Avenir, Helvetica, Arial, sans-serif;
+  line-height: 1.5;
+  font-weight: 400;
+  color-scheme: dark;
+  background-color: var(--bg-dark);
+  color: var(--text-main);
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  scroll-behavior: smooth;
+  scroll-padding-top: 80px;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  overflow-x: hidden;
+  background: radial-gradient(circle at top, #141420 0%, var(--bg-dark) 100%);
+}
+
+#root {
+  width: 100vw;
+  min-height: 100vh;
+}
+
+/* Glassmorphism Utilities */
+.glass {
+  background: var(--glass-bg);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid var(--glass-border);
+  border-radius: 16px;
+}
+
+.text-gradient {
+  background: linear-gradient(90deg, var(--neon-blue) 0%, var(--neon-purple) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* Navbar */
+.navbar {
+  background: transparent;
+  border-bottom: 1px solid transparent;
+}
+
+.navbar-scrolled {
+  background: rgba(10, 10, 15, 0.75);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--glass-border);
+}
+
+.navbar-link {
+  transition: opacity 0.2s ease, color 0.2s ease;
+}
+
+.navbar-link:hover {
+  opacity: 1 !important;
+  color: var(--neon-blue) !important;
+}
+
+.navbar-resume {
+  transition: background 0.2s ease, transform 0.2s ease;
+}
+
+.navbar-resume:hover {
+  background: rgba(0, 210, 255, 0.12);
+  transform: translateY(-1px);
+}
+
+.navbar-mobile-menu {
+  display: none;
+}
+
+@media (max-width: 768px) {
+  .navbar-links {
+    display: none !important;
+  }
+  .navbar-toggle {
+    display: block !important;
+  }
+  .navbar {
+    padding: 14px 20px !important;
+    background: rgba(10, 10, 15, 0.75);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border-bottom: 1px solid var(--glass-border);
+  }
+}

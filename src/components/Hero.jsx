@@ -124,9 +124,21 @@ const Scene = () => (
 
     <EarthNode />
 
-    <OrbitControls enableZoom={false} enablePan={false} autoRotate autoRotateSpeed={0.5} />
+    {/* enableRotate=false so a touch-drag on the hero scrolls the page instead of
+        spinning the camera — autoRotate still runs on its own regardless. */}
+    <OrbitControls
+      enableZoom={false}
+      enablePan={false}
+      enableRotate={false}
+      autoRotate={!prefersReducedMotion()}
+      autoRotateSpeed={0.5}
+    />
   </>
 );
+
+function prefersReducedMotion() {
+  return typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+}
 
 const Hero = () => {
   const scrollToAbout = () => {

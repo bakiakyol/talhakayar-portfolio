@@ -146,18 +146,18 @@ const BOOT_LINES = ['ESTABLISHING UPLINK...', 'CALIBRATING SIGNAL...', 'WELCOME'
 // on-theme for a wireless comms / signal processing portfolio, and pure
 // CSS/text animation so it carries no 3D performance cost.
 const BootOverlay = ({ onDone }) => {
+  const skip = useRef(prefersReducedMotion());
   const [lineIndex, setLineIndex] = useState(0);
   const [charIndex, setCharIndex] = useState(0);
-  const [visible, setVisible] = useState(true);
-  const skip = useRef(prefersReducedMotion());
+  // Computed lazily, before first paint — a reduced-motion visitor never
+  // renders the overlay at all, instead of rendering it for one frame and
+  // then hiding it (which is what caused the "flash of a > and it's gone" bug).
+  const [visible, setVisible] = useState(() => !skip.current);
   const onDoneRef = useRef(onDone);
   onDoneRef.current = onDone;
 
   useEffect(() => {
-    if (skip.current) {
-      setVisible(false);
-      return;
-    }
+    if (skip.current) return;
     const currentLine = BOOT_LINES[lineIndex];
     if (charIndex < currentLine.length) {
       const t = setTimeout(() => setCharIndex((c) => c + 1), 28);

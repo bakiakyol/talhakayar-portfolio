@@ -1,7 +1,7 @@
-import React, { useRef, Suspense, useMemo } from 'react';
+import React, { useRef, useState, useEffect, Suspense, useMemo } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
 import { OrbitControls, Sphere, Stars, useGLTF } from '@react-three/drei';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { ChevronDown } from 'lucide-react';
 import * as THREE from 'three';
 
@@ -140,13 +140,94 @@ function prefersReducedMotion() {
   return typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
 }
 
+const BOOT_LINES = ['ESTABLISHING UPLINK...', 'CALIBRATING SIGNAL...', 'WELCOME'];
+
+// A brief "signal acquisition" boot sequence before the hero content reveals —
+// on-theme for a wireless comms / signal processing portfolio, and pure
+// CSS/text animation so it carries no 3D performance cost.
+const BootOverlay = ({ onDone }) => {
+  const [lineIndex, setLineIndex] = useState(0);
+  const [charIndex, setCharIndex] = useState(0);
+  const [visible, setVisible] = useState(true);
+  const skip = useRef(prefersReducedMotion());
+  const onDoneRef = useRef(onDone);
+  onDoneRef.current = onDone;
+
+  useEffect(() => {
+    if (skip.current) {
+      setVisible(false);
+      return;
+    }
+    const currentLine = BOOT_LINES[lineIndex];
+    if (charIndex < currentLine.length) {
+      const t = setTimeout(() => setCharIndex((c) => c + 1), 28);
+      return () => clearTimeout(t);
+    }
+    if (lineIndex < BOOT_LINES.length - 1) {
+      const t = setTimeout(() => {
+        setLineIndex((i) => i + 1);
+        setCharIndex(0);
+      }, 300);
+      return () => clearTimeout(t);
+    }
+    const t = setTimeout(() => setVisible(false), 500);
+    return () => clearTimeout(t);
+  }, [charIndex, lineIndex]);
+
+  useEffect(() => {
+    if (!visible) {
+      const t = setTimeout(() => onDoneRef.current?.(), skip.current ? 0 : 500);
+      return () => clearTimeout(t);
+    }
+  }, [visible]);
+
+  return (
+    <AnimatePresence>
+      {visible && (
+        <motion.div
+          initial={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.5 }}
+          style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 200,
+            background: '#0a0a0f',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '0 20px',
+          }}
+        >
+          <div style={{ fontFamily: "'Courier New', monospace", fontSize: 'clamp(0.85rem, 3vw, 1.1rem)', letterSpacing: '1px' }}>
+            {BOOT_LINES.slice(0, lineIndex).map((line) => (
+              <div key={line} style={{ color: 'var(--neon-blue)', opacity: 0.4, marginBottom: '6px' }}>
+                {'> '}{line}
+              </div>
+            ))}
+            <div style={{ color: 'var(--neon-blue)' }}>
+              {'> '}
+              {BOOT_LINES[lineIndex].slice(0, charIndex)}
+              <span className="boot-cursor">_</span>
+            </div>
+          </div>
+        </motion.div>
+      )}
+    </AnimatePresence>
+  );
+};
+
 const Hero = () => {
+  const [introDone, setIntroDone] = useState(false);
+
   const scrollToAbout = () => {
     document.getElementById('about')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   };
 
   return (
     <section id="hero" style={{ height: '100vh', width: '100vw', position: 'relative' }}>
+      <BootOverlay onDone={() => setIntroDone(true)} />
+
       <div style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100vh', zIndex: 0 }}>
         <Canvas camera={{ position: [0, 0, 5], fov: 45 }} dpr={1}>
           <Scene />
@@ -167,8 +248,8 @@ const Hero = () => {
       }}>
         <motion.div
           initial={{ opacity: 0, y: 30 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 1, delay: 0.5 }}
+          animate={introDone ? { opacity: 1, y: 0 } : { opacity: 0, y: 30 }}
+          transition={{ duration: 0.8 }}
         >
           <h1 style={{ fontSize: 'clamp(2.2rem, 7vw, 4rem)', fontWeight: 800, marginBottom: '10px' }}>
             Hi, I'm <span className="text-gradient">Talha Kayar</span>
@@ -183,8 +264,8 @@ const Hero = () => {
       <motion.button
         onClick={scrollToAbout}
         initial={{ opacity: 0 }}
-        animate={{ opacity: 1, y: [0, 10, 0] }}
-        transition={{ opacity: { duration: 1, delay: 1.2 }, y: { duration: 1.8, repeat: Infinity, ease: 'easeInOut' } }}
+        animate={introDone ? { opacity: 1, y: [0, 10, 0] } : { opacity: 0 }}
+        transition={{ opacity: { duration: 0.8, delay: 0.3 }, y: { duration: 1.8, repeat: Infinity, ease: 'easeInOut' } }}
         aria-label="Scroll to About section"
         style={{
           position: 'absolute',

@@ -46,6 +46,14 @@ body {
   border-radius: 16px;
 }
 
+.boot-cursor {
+  animation: boot-blink 0.9s step-start infinite;
+}
+
+@keyframes boot-blink {
+  50% { opacity: 0; }
+}
+
 .text-gradient {
   background: linear-gradient(90deg, var(--neon-blue) 0%, var(--neon-purple) 100%);
   -webkit-background-clip: text;

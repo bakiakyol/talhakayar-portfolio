@@ -14,11 +14,28 @@ const links = [
 const Navbar = () => {
   const [scrolled, setScrolled] = useState(false);
   const [open, setOpen] = useState(false);
+  const [active, setActive] = useState('');
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 40);
     window.addEventListener('scroll', onScroll);
     return () => window.removeEventListener('scroll', onScroll);
+  }, []);
+
+  // Highlights the nav link for whichever section currently sits across the
+  // vertical center of the viewport, rather than waiting for a full scroll-past.
+  useEffect(() => {
+    const sections = links.map((l) => document.getElementById(l.id)).filter(Boolean);
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) setActive(entry.target.id);
+        });
+      },
+      { rootMargin: '-45% 0px -45% 0px', threshold: 0 }
+    );
+    sections.forEach((s) => observer.observe(s));
+    return () => observer.disconnect();
   }, []);
 
   const handleNav = (id) => {
@@ -63,9 +80,29 @@ const Navbar = () => {
             href={`#${link.id}`}
             onClick={(e) => { e.preventDefault(); handleNav(link.id); }}
             className="navbar-link"
-            style={{ textDecoration: 'none', fontSize: '0.9rem' }}
+            style={{
+              position: 'relative',
+              textDecoration: 'none',
+              fontSize: '0.9rem',
+              color: active === link.id ? 'var(--text-primary)' : undefined,
+              paddingBottom: '4px',
+            }}
           >
             {link.label}
+            {active === link.id && (
+              <motion.span
+                layoutId="nav-underline"
+                transition={{ type: 'spring', visualDuration: 0.4, bounce: 0 }}
+                style={{
+                  position: 'absolute',
+                  left: 0,
+                  right: 0,
+                  bottom: 0,
+                  height: '1px',
+                  background: 'var(--text-primary)',
+                }}
+              />
+            )}
           </a>
         ))}
         <a

@@ -1,9 +1,17 @@
-import React from 'react';
-import { motion, useReducedMotion } from 'framer-motion';
+import React, { useRef } from 'react';
+import { motion, useReducedMotion, useScroll, useTransform } from 'framer-motion';
 import { ChevronDown } from 'lucide-react';
 
 const Hero = () => {
   const reduced = useReducedMotion();
+  const sectionRef = useRef(null);
+
+  // As the hero scrolls out from under the fixed nav, its text settles back
+  // and fades — the same "recede, don't just disappear" treatment Apple uses
+  // on its own product-intro headlines.
+  const { scrollYProgress } = useScroll({ target: sectionRef, offset: ['start start', 'end start'] });
+  const scale = useTransform(scrollYProgress, [0, 1], [1, 0.92]);
+  const fade = useTransform(scrollYProgress, [0, 1], [1, 0]);
 
   const scrollToAbout = () => {
     document.getElementById('about')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -19,6 +27,7 @@ const Hero = () => {
 
   return (
     <section
+      ref={sectionRef}
       id="hero"
       style={{
         height: '100svh',
@@ -32,46 +41,48 @@ const Hero = () => {
         textAlign: 'center',
       }}
     >
-      <motion.p
-        {...rise(0)}
-        style={{
-          textTransform: 'uppercase',
-          letterSpacing: '0.16em',
-          fontSize: 'clamp(0.72rem, 1.6vw, 0.85rem)',
-          fontWeight: 600,
-          color: 'var(--text-secondary)',
-          marginBottom: '22px',
-        }}
-      >
-        Electrical &amp; Electronics Engineer
-      </motion.p>
+      <motion.div style={reduced ? undefined : { scale, opacity: fade }}>
+        <motion.p
+          {...rise(0)}
+          style={{
+            textTransform: 'uppercase',
+            letterSpacing: '0.16em',
+            fontSize: 'clamp(0.72rem, 1.6vw, 0.85rem)',
+            fontWeight: 600,
+            color: 'var(--text-secondary)',
+            marginBottom: '22px',
+          }}
+        >
+          Electrical &amp; Electronics Engineer
+        </motion.p>
 
-      <motion.h1
-        {...rise(0.08)}
-        style={{
-          fontSize: 'clamp(2.75rem, 9vw, 6.5rem)',
-          fontWeight: 600,
-          letterSpacing: '-0.03em',
-          lineHeight: 1.02,
-          color: 'var(--text-primary)',
-        }}
-      >
-        Talha Kayar
-      </motion.h1>
+        <motion.h1
+          {...rise(0.08)}
+          style={{
+            fontSize: 'clamp(2.75rem, 9vw, 6.5rem)',
+            fontWeight: 600,
+            letterSpacing: '-0.03em',
+            lineHeight: 1.02,
+            color: 'var(--text-primary)',
+          }}
+        >
+          Talha Kayar
+        </motion.h1>
 
-      <motion.h2
-        {...rise(0.16)}
-        style={{
-          fontSize: 'clamp(1.05rem, 2.4vw, 1.4rem)',
-          fontWeight: 400,
-          letterSpacing: '-0.005em',
-          color: 'var(--text-secondary)',
-          maxWidth: '540px',
-          marginTop: '20px',
-        }}
-      >
-        Signal processing, wireless communications, and embedded systems.
-      </motion.h2>
+        <motion.h2
+          {...rise(0.16)}
+          style={{
+            fontSize: 'clamp(1.05rem, 2.4vw, 1.4rem)',
+            fontWeight: 400,
+            letterSpacing: '-0.005em',
+            color: 'var(--text-secondary)',
+            maxWidth: '540px',
+            marginTop: '20px',
+          }}
+        >
+          Signal processing, wireless communications, and embedded systems.
+        </motion.h2>
+      </motion.div>
 
       <motion.button
         onClick={scrollToAbout}

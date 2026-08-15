@@ -22,6 +22,16 @@ const projects = [
 const Projects = () => {
   const reduced = useReducedMotion();
 
+  // Feeds the cursor position into the card's --mx/--my custom properties so
+  // the CSS spotlight (see .card::before in index.css) can track it — kept
+  // out of React state since it needs to update every pointer move, not
+  // trigger a re-render.
+  const handleCardMouseMove = (e) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    e.currentTarget.style.setProperty('--mx', `${e.clientX - rect.left}px`);
+    e.currentTarget.style.setProperty('--my', `${e.clientY - rect.top}px`);
+  };
+
   return (
     <section id="projects" className="section">
       <p className="eyebrow">Projects</p>
@@ -35,6 +45,7 @@ const Projects = () => {
             whileInView={{ opacity: 1, y: 0 }}
             transition={reduced ? { duration: 0.3 } : { type: 'spring', visualDuration: 0.5, bounce: 0, delay: index * 0.08 }}
             viewport={{ once: true, margin: '-60px' }}
+            onMouseMove={handleCardMouseMove}
             className="card"
             style={{ padding: '32px', display: 'flex', flexDirection: 'column' }}
           >

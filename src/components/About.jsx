@@ -1,6 +1,13 @@
 import React from 'react';
 import { motion, useReducedMotion } from 'framer-motion';
 
+const tests = [
+  { value: '170/170', label: 'GRE Quantitative · Top 0.1%' },
+  { value: 'Top 0.1%', label: 'YKS · 1,908 / 2.5M' },
+  { value: 'Top 0.7%', label: 'ALES · Rank 1,004' },
+  { value: '8.0', label: 'IELTS' },
+];
+
 const courses = [
   { name: 'Telecommunications II (EE436)', grade: 'In Progress' },
   { name: 'Introduction to Computer Networks (EE444)', grade: 'In Progress' },
@@ -50,16 +57,23 @@ const About = () => {
             B.S. Electrical and Electronics Engineering
           </p>
           <p style={{ color: 'var(--text-secondary)', marginTop: '4px' }}>METU, Ankara &middot; Expected July 2026</p>
-          <p style={{ color: 'var(--text-tertiary)', fontSize: '0.9rem', marginTop: '8px' }}>CGPA 2.95/4.00 &middot; Top 23%</p>
+
+          <div style={{ marginTop: '28px' }}>
+            <span className="stat-value">2.95</span>
+            <span style={{ fontSize: '1.1rem', color: 'var(--text-tertiary)', marginLeft: '4px' }}>/4.00</span>
+            <p className="stat-label" style={{ marginTop: '6px' }}>CGPA &middot; Top 23%</p>
+          </div>
         </div>
 
         <div>
           <p className="eyebrow" style={{ marginBottom: '12px' }}>Standardized Tests</p>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', color: 'var(--text-secondary)' }}>
-            <p><strong style={{ color: 'var(--text-primary)', fontWeight: 500 }}>GRE Quantitative</strong> — 170/170, top 0.1%</p>
-            <p><strong style={{ color: 'var(--text-primary)', fontWeight: 500 }}>YKS</strong> — ranked 1,908th of 2.5M, top 0.1%</p>
-            <p><strong style={{ color: 'var(--text-primary)', fontWeight: 500 }}>ALES</strong> — ranked 1,004th, top 0.7%</p>
-            <p><strong style={{ color: 'var(--text-primary)', fontWeight: 500 }}>IELTS</strong> — 8.0</p>
+          <div className="stat-grid">
+            {tests.map((t) => (
+              <div key={t.label}>
+                <span className="stat-value">{t.value}</span>
+                <p className="stat-label">{t.label}</p>
+              </div>
+            ))}
           </div>
         </div>
       </motion.div>

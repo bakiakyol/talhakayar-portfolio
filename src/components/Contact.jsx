@@ -1,51 +1,48 @@
 import React from 'react';
-import { motion } from 'framer-motion';
+import { motion, useReducedMotion } from 'framer-motion';
 import { Mail, ExternalLink, MapPin, Download } from 'lucide-react';
 
 const Contact = () => {
+  const reduced = useReducedMotion();
+
   return (
-    <section id="contact" style={{ padding: '100px 20px 150px 20px', maxWidth: '800px', margin: '0 auto', textAlign: 'center', position: 'relative', zIndex: 1 }}>
+    <section
+      id="contact"
+      className="section"
+      style={{ maxWidth: '720px', textAlign: 'center', paddingBottom: '180px' }}
+    >
       <motion.div
-        initial={{ opacity: 0, scale: 0.9 }}
-        whileInView={{ opacity: 1, scale: 1 }}
-        transition={{ duration: 0.6 }}
-        viewport={{ once: true }}
-        className="glass"
-        style={{ padding: '50px', background: 'rgba(20, 20, 30, 0.8)' }}
+        initial={{ opacity: 0, y: reduced ? 0 : 20 }}
+        whileInView={{ opacity: 1, y: 0 }}
+        transition={reduced ? { duration: 0.3 } : { type: 'spring', visualDuration: 0.5, bounce: 0 }}
+        viewport={{ once: true, margin: '-80px' }}
       >
-        <h2 style={{ fontSize: '2.5rem', marginBottom: '20px', color: 'var(--neon-blue)' }}>Get In Touch</h2>
-        <p style={{ color: 'var(--text-muted)', marginBottom: '40px', fontSize: '1.2rem' }}>
-          Currently seeking new opportunities in Signal Processing, Communications, and Embedded Systems.
+        <p className="eyebrow" style={{ textAlign: 'center' }}>Contact</p>
+        <h2 className="section-heading" style={{ margin: '0 auto 16px', textAlign: 'center' }}>
+          Let&apos;s talk.
+        </h2>
+        <p style={{ color: 'var(--text-secondary)', marginBottom: '48px', fontSize: '1.05rem' }}>
+          Currently seeking opportunities in signal processing, communications, and embedded systems.
         </p>
-        
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', alignItems: 'center' }}>
-          <a href="mailto:talhakayar7@gmail.com" style={{ display: 'flex', alignItems: 'center', gap: '10px', color: 'var(--text-main)', textDecoration: 'none', fontSize: '1.2rem' }}>
-            <Mail color="var(--neon-purple)" /> talhakayar7@gmail.com
+
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '18px', alignItems: 'center' }}>
+          <a href="mailto:talhakayar7@gmail.com" className="link-quiet" style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '1.05rem', color: 'var(--text-primary)' }}>
+            <Mail size={18} color="var(--text-tertiary)" /> talhakayar7@gmail.com
           </a>
-          <a href="https://www.linkedin.com/in/talha-kayar-720025232/" target="_blank" rel="noreferrer" style={{ display: 'flex', alignItems: 'center', gap: '10px', color: 'var(--text-main)', textDecoration: 'none', fontSize: '1.2rem' }}>
-            <ExternalLink color="var(--neon-blue)" /> LinkedIn Profile
+          <a href="https://www.linkedin.com/in/talha-kayar-720025232/" target="_blank" rel="noreferrer" className="link-quiet" style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '1.05rem', color: 'var(--text-primary)' }}>
+            <ExternalLink size={18} color="var(--text-tertiary)" /> LinkedIn Profile
           </a>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', color: 'var(--text-muted)', fontSize: '1.1rem', marginTop: '10px' }}>
-            <MapPin size={20} /> Ankara, Türkiye
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', color: 'var(--text-secondary)', fontSize: '0.98rem', marginTop: '4px' }}>
+            <MapPin size={16} /> Ankara, Türkiye
           </div>
 
           <a
             href="/Talha_Kayar_CV.pdf"
             download
-            className="glass"
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '10px',
-              marginTop: '20px',
-              padding: '12px 28px',
-              color: 'var(--neon-purple)',
-              textDecoration: 'none',
-              fontSize: '1.05rem',
-              border: '1px solid rgba(157, 78, 221, 0.4)',
-            }}
+            className="btn btn-fill"
+            style={{ marginTop: '28px' }}
           >
-            <Download size={18} /> Download Resume
+            <Download size={17} /> Download Résumé
           </a>
         </div>
       </motion.div>

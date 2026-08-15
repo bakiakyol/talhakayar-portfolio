@@ -1,28 +1,31 @@
 import React from 'react';
-import { motion } from 'framer-motion';
+import { motion, useReducedMotion } from 'framer-motion';
 
 const skills = [
-  "Python", "MATLAB", "Embedded C", "ESP32-S3", "RTKLIB", 
-  "Deep Learning", "MQTT", "Sensor Fusion", "Signal Processing", "GNSS"
+  'Python', 'MATLAB', 'Embedded C', 'ESP32-S3', 'RTKLIB',
+  'Deep Learning', 'MQTT', 'Sensor Fusion', 'Signal Processing', 'GNSS',
 ];
 
 const Skills = () => {
+  const reduced = useReducedMotion();
+
   return (
-    <section id="skills" style={{ padding: '80px 20px', maxWidth: '800px', margin: '0 auto', textAlign: 'center', position: 'relative', zIndex: 1 }}>
-      <h2 style={{ fontSize: '2.5rem', marginBottom: '30px', color: 'var(--neon-purple)' }}>Skills & Technologies</h2>
-      <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'center', gap: '15px' }}>
+    <section id="skills" className="section section-tight" style={{ maxWidth: '820px', textAlign: 'center' }}>
+      <p className="eyebrow">Skills</p>
+      <h2 className="section-heading" style={{ margin: '0 auto 40px', textAlign: 'center' }}>Tools &amp; technologies</h2>
+      <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'center', gap: '12px' }}>
         {skills.map((skill, index) => (
-          <motion.div
+          <motion.span
             key={skill}
-            initial={{ opacity: 0, y: 20 }}
+            initial={{ opacity: 0, y: reduced ? 0 : 12 }}
             whileInView={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.4, delay: index * 0.05 }}
+            transition={reduced ? { duration: 0.25 } : { type: 'spring', visualDuration: 0.4, bounce: 0, delay: index * 0.04 }}
             viewport={{ once: true }}
-            className="glass"
-            style={{ padding: '10px 25px', fontSize: '1.1rem', color: 'var(--text-main)', border: '1px solid rgba(0,210,255,0.3)' }}
+            className="tag"
+            style={{ padding: '10px 20px', fontSize: '0.95rem' }}
           >
             {skill}
-          </motion.div>
+          </motion.span>
         ))}
       </div>
     </section>

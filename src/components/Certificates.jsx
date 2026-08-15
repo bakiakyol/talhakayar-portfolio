@@ -1,5 +1,5 @@
 import React from 'react';
-import { motion } from 'framer-motion';
+import { motion, useReducedMotion } from 'framer-motion';
 import { Award } from 'lucide-react';
 
 const certificates = [
@@ -13,31 +13,33 @@ const certificates = [
 ];
 
 const Certificates = () => {
+  const reduced = useReducedMotion();
+
   return (
-    <section id="certificates" style={{ padding: '100px 20px', maxWidth: '1000px', margin: '0 auto', position: 'relative', zIndex: 1 }}>
-      <h2 style={{ fontSize: '2.5rem', marginBottom: '40px', color: 'var(--neon-blue)', textAlign: 'center' }}>
-        Certificates &amp; Awards
-      </h2>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '20px' }}>
+    <section id="certificates" className="section">
+      <p className="eyebrow">Certificates &amp; Awards</p>
+      <h2 className="section-heading" style={{ marginBottom: '48px' }}>Continued learning</h2>
+
+      <div className="hairline-list">
         {certificates.map((cert, index) => (
           <motion.div
             key={cert.title}
-            initial={{ opacity: 0, y: 20 }}
+            initial={{ opacity: 0, y: reduced ? 0 : 14 }}
             whileInView={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.4, delay: index * 0.05 }}
-            viewport={{ once: true }}
-            className="glass"
-            style={{ padding: '20px', display: 'flex', gap: '14px', alignItems: 'flex-start' }}
+            transition={reduced ? { duration: 0.25 } : { type: 'spring', visualDuration: 0.4, bounce: 0, delay: index * 0.03 }}
+            viewport={{ once: true, margin: '-40px' }}
+            className="hairline-row"
+            style={{ alignItems: 'flex-start', gap: '16px', flexWrap: 'wrap' }}
           >
-            <Award color="var(--neon-purple)" size={22} style={{ flexShrink: 0, marginTop: '2px' }} />
-            <div>
-              <h3 style={{ fontSize: '1rem', color: 'var(--text-main)', marginBottom: '4px', lineHeight: 1.4 }}>
+            <div style={{ display: 'flex', gap: '14px', alignItems: 'flex-start', flex: '1 1 320px' }}>
+              <Award color="var(--text-tertiary)" size={18} style={{ flexShrink: 0, marginTop: '3px' }} />
+              <h3 style={{ fontSize: '0.98rem', color: 'var(--text-primary)', fontWeight: 500, lineHeight: 1.5 }}>
                 {cert.title}
               </h3>
-              <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>
-                {cert.issuer} &middot; {cert.date}
-              </p>
             </div>
+            <p style={{ color: 'var(--text-secondary)', fontSize: '0.88rem', whiteSpace: 'nowrap', marginLeft: 'auto' }}>
+              {cert.issuer} &middot; {cert.date}
+            </p>
           </motion.div>
         ))}
       </div>

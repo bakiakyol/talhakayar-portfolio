@@ -1,60 +1,71 @@
 import React from 'react';
-import { motion } from 'framer-motion';
+import { motion, useReducedMotion } from 'framer-motion';
 
 const experiences = [
   {
-    company: "Roketsan",
-    role: "R&D Intern (GNSS & Positioning Systems)",
-    date: "July 2025 - August 2025",
+    company: 'Roketsan',
+    role: 'R&D Intern (GNSS & Positioning Systems)',
+    date: 'Jul 2025 – Aug 2025',
     desc: [
-      "Developed a satellite selection algorithm using Python and RTKLIB to optimize positioning accuracy in NLOS scenarios.",
-      "Mitigated positioning errors caused by atmospheric delays and vehicle dynamics (Yaw/Pitch/Roll).",
-      "Analyzed GNSS signal integrity and implemented data fusion techniques for robust navigation.",
-      "Built scalable preprocessing pipelines to handle large-scale satellite data logs."
-    ]
+      'Developed a satellite selection algorithm using Python and RTKLIB to optimize positioning accuracy in NLOS scenarios.',
+      'Mitigated positioning errors caused by atmospheric delays and vehicle dynamics (yaw/pitch/roll).',
+      'Analyzed GNSS signal integrity and implemented data fusion techniques for robust navigation.',
+      'Built scalable preprocessing pipelines to handle large-scale satellite data logs.',
+    ],
   },
   {
-    company: "INFINIA",
-    role: "Embedded Software Developer (Intern)",
-    date: "June 2024 - July 2024",
+    company: 'INFINIA',
+    role: 'Embedded Software Developer (Intern)',
+    date: 'Jun 2024 – Jul 2024',
     desc: [
-      "Developed IoT communication solutions using ESP32-S3 and MQTT protocol.",
-      "Implemented real-time 2-way data transmission over Wi-Fi networks using Embedded C."
-    ]
+      'Developed IoT communication solutions using ESP32-S3 and MQTT protocol.',
+      'Implemented real-time two-way data transmission over Wi-Fi networks using embedded C.',
+    ],
   },
   {
-    company: "DataLobster",
-    role: "Signal Processing Undergraduate Researcher (Part Time)",
-    date: "March 2022 - April 2025",
+    company: 'DataLobster',
+    role: 'Signal Processing Undergraduate Researcher (Part Time)',
+    date: 'Mar 2022 – Apr 2025',
     desc: [
-      "Designed algorithms to identify anomalies in industrial sensor data streams.",
-      "Applied statistical signal processing methods (Filtering, Spectral Analysis) for data analysis.",
-      "Developed Autoencoder models and data pipelines for predictive maintenance solutions."
-    ]
-  }
+      'Designed algorithms to identify anomalies in industrial sensor data streams.',
+      'Applied statistical signal processing methods (filtering, spectral analysis) for data analysis.',
+      'Developed autoencoder models and data pipelines for predictive maintenance solutions.',
+    ],
+  },
 ];
 
 const Experience = () => {
+  const reduced = useReducedMotion();
+
   return (
-    <section id="experience" style={{ padding: '100px 20px', maxWidth: '1000px', margin: '0 auto', position: 'relative', zIndex: 1 }}>
-      <h2 style={{ fontSize: '2.5rem', marginBottom: '40px', color: 'var(--neon-purple)', textAlign: 'center' }}>Experience</h2>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '30px' }}>
+    <section id="experience" className="section">
+      <p className="eyebrow">Experience</p>
+      <h2 className="section-heading" style={{ marginBottom: '56px' }}>Where I&apos;ve worked</h2>
+
+      <div className="hairline-list">
         {experiences.map((exp, index) => (
           <motion.div
-            key={index}
-            initial={{ opacity: 0, x: -50 }}
-            whileInView={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.6, delay: index * 0.1 }}
-            viewport={{ once: true, margin: "-100px" }}
-            className="glass"
-            style={{ padding: '30px', position: 'relative', borderLeft: '4px solid var(--neon-blue)' }}
+            key={exp.company}
+            initial={{ opacity: 0, y: reduced ? 0 : 18 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            transition={reduced ? { duration: 0.3 } : { type: 'spring', visualDuration: 0.5, bounce: 0, delay: index * 0.06 }}
+            viewport={{ once: true, margin: '-80px' }}
+            className="exp-row"
+            style={{
+              display: 'grid',
+              gap: '24px',
+              padding: '36px 0',
+              borderBottom: '1px solid var(--hairline-soft)',
+            }}
           >
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', marginBottom: '15px' }}>
-              <h3 style={{ fontSize: '1.5rem', margin: 0 }}>{exp.company}</h3>
-              <span style={{ color: 'var(--neon-blue)', fontWeight: 500 }}>{exp.date}</span>
+            <div>
+              <h3 style={{ fontSize: '1.15rem', fontWeight: 600, color: 'var(--text-primary)', letterSpacing: '-0.01em' }}>
+                {exp.company}
+              </h3>
+              <p style={{ color: 'var(--text-secondary)', fontSize: '0.92rem', marginTop: '4px' }}>{exp.role}</p>
+              <p style={{ color: 'var(--text-tertiary)', fontSize: '0.85rem', marginTop: '10px' }}>{exp.date}</p>
             </div>
-            <h4 style={{ color: 'var(--text-muted)', marginBottom: '15px', fontWeight: 400 }}>{exp.role}</h4>
-            <ul style={{ paddingLeft: '20px', color: 'var(--text-main)', lineHeight: '1.6' }}>
+            <ul style={{ paddingLeft: '18px', color: 'var(--text-secondary)', lineHeight: 1.7 }}>
               {exp.desc.map((item, i) => (
                 <li key={i} style={{ marginBottom: '8px' }}>{item}</li>
               ))}

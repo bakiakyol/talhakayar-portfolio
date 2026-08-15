@@ -1,5 +1,12 @@
 import React from 'react';
-import { motion } from 'framer-motion';
+import { motion, useReducedMotion } from 'framer-motion';
+
+const tests = [
+  { value: '170/170', label: 'GRE Quantitative · Top 0.1%' },
+  { value: 'Top 0.1%', label: 'YKS · 1,908 / 2.5M' },
+  { value: 'Top 0.7%', label: 'ALES · Rank 1,004' },
+  { value: '8.0', label: 'IELTS' },
+];
 
 const courses = [
   { name: 'Telecommunications II (EE436)', grade: 'In Progress' },
@@ -11,60 +18,77 @@ const courses = [
 ];
 
 const About = () => {
+  const reduced = useReducedMotion();
+  const rise = {
+    initial: { opacity: 0, y: reduced ? 0 : 20 },
+    whileInView: { opacity: 1, y: 0 },
+    viewport: { once: true, margin: '-80px' },
+    transition: reduced ? { duration: 0.3 } : { type: 'spring', visualDuration: 0.5, bounce: 0 },
+  };
+
   return (
-    <section id="about" style={{ padding: '100px 20px', maxWidth: '1000px', margin: '0 auto', position: 'relative', zIndex: 1 }}>
-      <motion.div
-        initial={{ opacity: 0, y: 50 }}
-        whileInView={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.8 }}
-        viewport={{ once: true }}
-        className="glass"
-        style={{ padding: '40px' }}
-      >
-        <h2 style={{ fontSize: '2.5rem', marginBottom: '20px', color: 'var(--neon-blue)' }}>About Me</h2>
-        <p style={{ fontSize: '1.2rem', color: 'var(--text-main)', lineHeight: '1.8', marginBottom: '30px' }}>
-          I am a senior Electrical and Electronics Engineering student at <strong>Middle East Technical University (METU)</strong>, specializing in Wireless Communications and Signal Processing. I combine elite quantitative aptitude with hands-on experience in SDR-based modulation classification and GNSS-free positioning. Skilled in bridging the gap between theoretical models and real-time hardware using Python, MATLAB, and C.
+    <section id="about" className="section">
+      <motion.div {...rise}>
+        <p className="eyebrow">About</p>
+        <h2 className="section-heading" style={{ marginBottom: '28px' }}>
+          Senior Electrical &amp; Electronics Engineering student focused on wireless communications and signal processing.
+        </h2>
+        <p style={{ fontSize: '1.1rem', color: 'var(--text-secondary)', lineHeight: 1.7, maxWidth: '720px' }}>
+          Studying at <strong style={{ color: 'var(--text-primary)', fontWeight: 500 }}>Middle East Technical University (METU)</strong>,
+          with hands-on experience in SDR-based modulation classification and GNSS-free positioning. Comfortable bridging
+          theoretical models and real-time hardware in Python, MATLAB, and C.
         </p>
-        
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '20px' }}>
-          <div className="glass" style={{ padding: '20px', border: '1px solid var(--neon-purple)', background: 'rgba(157, 78, 221, 0.05)' }}>
-            <h3 style={{ color: 'var(--neon-purple)', marginBottom: '10px' }}>Education</h3>
-            <p><strong>B.S. Electrical and Electronics Engineering</strong><br/>METU, Ankara (Expected July 2026)</p>
-            <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginTop: '5px' }}>CGPA: 2.95/4.00 (Top 23%)</p>
-          </div>
-          
-          <div className="glass" style={{ padding: '20px', border: '1px solid var(--neon-blue)', background: 'rgba(0, 210, 255, 0.05)' }}>
-            <h3 style={{ color: 'var(--neon-blue)', marginBottom: '10px' }}>Standardized Tests</h3>
-            <p><strong>GRE Quantitative:</strong> 170/170 (Top 0.1%)</p>
-            <p><strong>YKS:</strong> Ranked 1908th / 2.5M (Top 0.1%)</p>
-            <p><strong>ALES:</strong> Ranked 1004th (Top 0.7%)</p>
-            <p><strong>IELTS:</strong> 8.0</p>
+      </motion.div>
+
+      <motion.div
+        {...rise}
+        style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
+          gap: '48px',
+          marginTop: '64px',
+          paddingTop: '40px',
+          borderTop: '1px solid var(--hairline-soft)',
+        }}
+      >
+        <div>
+          <p className="eyebrow" style={{ marginBottom: '12px' }}>Education</p>
+          <p style={{ fontSize: '1.02rem', color: 'var(--text-primary)' }}>
+            B.S. Electrical and Electronics Engineering
+          </p>
+          <p style={{ color: 'var(--text-secondary)', marginTop: '4px' }}>METU, Ankara &middot; Expected July 2026</p>
+
+          <div style={{ marginTop: '28px' }}>
+            <span className="stat-value">2.95</span>
+            <span style={{ fontSize: '1.1rem', color: 'var(--text-tertiary)', marginLeft: '4px' }}>/4.00</span>
+            <p className="stat-label" style={{ marginTop: '6px' }}>CGPA &middot; Top 23%</p>
           </div>
         </div>
 
-        <div style={{ marginTop: '30px' }}>
-          <h3 style={{ color: 'var(--neon-blue)', marginBottom: '15px', fontSize: '1.2rem' }}>Key Courses</h3>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '10px' }}>
-            {courses.map((course) => (
-              <div
-                key={course.name}
-                style={{
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                  padding: '10px 16px',
-                  borderRadius: '10px',
-                  background: 'rgba(255,255,255,0.03)',
-                  border: '1px solid var(--glass-border)',
-                }}
-              >
-                <span style={{ color: 'var(--text-main)', fontSize: '0.92rem' }}>{course.name}</span>
-                <span style={{ color: 'var(--neon-purple)', fontSize: '0.85rem', fontWeight: 600, marginLeft: '10px', whiteSpace: 'nowrap' }}>
-                  {course.grade}
-                </span>
+        <div>
+          <p className="eyebrow" style={{ marginBottom: '12px' }}>Standardized Tests</p>
+          <div className="stat-grid">
+            {tests.map((t) => (
+              <div key={t.label}>
+                <span className="stat-value">{t.value}</span>
+                <p className="stat-label">{t.label}</p>
               </div>
             ))}
           </div>
+        </div>
+      </motion.div>
+
+      <motion.div {...rise} style={{ marginTop: '64px' }}>
+        <p className="eyebrow" style={{ marginBottom: '4px' }}>Key Courses</p>
+        <div className="hairline-list">
+          {courses.map((course) => (
+            <div key={course.name} className="hairline-row">
+              <span style={{ color: 'var(--text-primary)', fontSize: '0.98rem' }}>{course.name}</span>
+              <span style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', whiteSpace: 'nowrap' }}>
+                {course.grade}
+              </span>
+            </div>
+          ))}
         </div>
       </motion.div>
     </section>

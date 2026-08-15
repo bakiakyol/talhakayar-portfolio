@@ -1,11 +1,5 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
-  <defs>
-    <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0%" stop-color="#00d2ff"/>
-      <stop offset="100%" stop-color="#9d4edd"/>
-    </linearGradient>
-  </defs>
-  <rect width="64" height="64" rx="16" fill="#0a0a0f"/>
-  <rect x="1.5" y="1.5" width="61" height="61" rx="14.5" fill="none" stroke="url(#g)" stroke-opacity="0.35" stroke-width="1.5"/>
-  <text x="32" y="41" text-anchor="middle" font-family="Arial, sans-serif" font-weight="800" font-size="26" fill="url(#g)">TK</text>
+  <rect width="64" height="64" rx="16" fill="#000000"/>
+  <rect x="1.5" y="1.5" width="61" height="61" rx="14.5" fill="none" stroke="#ffffff" stroke-opacity="0.18" stroke-width="1.5"/>
+  <text x="32" y="41" text-anchor="middle" font-family="-apple-system, Helvetica, Arial, sans-serif" font-weight="600" font-size="24" letter-spacing="-0.5" fill="#f5f5f7">TK</text>
 </svg>

@@ -14,7 +14,7 @@ const links = [
 const Navbar = () => {
   const [scrolled, setScrolled] = useState(false);
   const [open, setOpen] = useState(false);
-  const [active, setActive] = useState('');
+  const [active, setActive] = useState('hero');
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 40);
@@ -24,8 +24,12 @@ const Navbar = () => {
 
   // Highlights the nav link for whichever section currently sits across the
   // vertical center of the viewport, rather than waiting for a full scroll-past.
+  // 'hero' is included so the TK logo lights up instead of the last section
+  // that happened to fire — otherwise scrolling back to the top left no
+  // section intersecting and the previous link stayed lit forever.
   useEffect(() => {
-    const sections = links.map((l) => document.getElementById(l.id)).filter(Boolean);
+    const ids = ['hero', ...links.map((l) => l.id)];
+    const sections = ids.map((id) => document.getElementById(id)).filter(Boolean);
     const observer = new IntersectionObserver(
       (entries) => {
         entries.forEach((entry) => {
@@ -63,14 +67,30 @@ const Navbar = () => {
         href="#hero"
         onClick={(e) => { e.preventDefault(); handleNav('hero'); }}
         style={{
+          position: 'relative',
           fontSize: '1.05rem',
           fontWeight: 600,
           letterSpacing: '-0.01em',
-          color: 'var(--text-primary)',
+          color: active === 'hero' ? 'var(--text-primary)' : 'var(--text-secondary)',
           textDecoration: 'none',
+          paddingBottom: '4px',
         }}
       >
         TK
+        {active === 'hero' && (
+          <motion.span
+            layoutId="nav-underline"
+            transition={{ type: 'spring', visualDuration: 0.4, bounce: 0 }}
+            style={{
+              position: 'absolute',
+              left: 0,
+              right: 0,
+              bottom: 0,
+              height: '1px',
+              background: 'var(--text-primary)',
+            }}
+          />
+        )}
       </a>
 
       <div className="navbar-links" style={{ display: 'flex', alignItems: 'center', gap: '32px' }}>

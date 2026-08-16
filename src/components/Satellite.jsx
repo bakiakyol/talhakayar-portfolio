@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, Suspense, lazy } from 'react';
 import {
   motion,
   useScroll,
@@ -8,6 +8,11 @@ import {
   useMotionValue,
   useReducedMotion,
 } from 'framer-motion';
+
+// three.js + fiber + drei are a heavy dependency for one decorative element —
+// split them into their own chunk so they load after the page's first paint
+// instead of blocking it.
+const Satellite3D = lazy(() => import('./Satellite3D'));
 
 // A wireframe satellite that treats scroll like a flight path rather than a
 // slider. Two things drive it, both spring-damped instead of applied
@@ -65,16 +70,24 @@ const Satellite = () => {
     <motion.div
       aria-hidden="true"
       className="satellite-wrap"
-      style={{ ...wrapStyle, y, x: drift, rotate: tilt, willChange: 'transform' }}
+      style={{ ...wrapStyle, y, x: drift, willChange: 'transform' }}
     >
-      {/* Idle drift layered underneath the scroll physics — a slow, gentle
-          tumble so it never looks frozen while you're reading, not moving. */}
-      <motion.div
-        animate={{ y: [0, -9, 0], rotate: [-1.6, 1.6, -1.6] }}
-        transition={{ duration: 7.5, repeat: Infinity, ease: 'easeInOut' }}
-      >
-        <SatelliteGlyph />
-      </motion.div>
+      {/* Bank angle is fed into the 3D scene as an actual roll of the model
+          (see Satellite3D), not a flat CSS rotate on this container — a
+          real perspective lean instead of spinning a 2D image. */}
+      <div style={{ position: 'relative', width: '260px', height: '210px' }}>
+        <div
+          style={{
+            position: 'absolute',
+            inset: '-40px',
+            background: 'radial-gradient(closest-side, rgba(245,245,247,0.10), transparent 70%)',
+            pointerEvents: 'none',
+          }}
+        />
+        <Suspense fallback={<SatelliteGlyph />}>
+          <Satellite3D tilt={tilt} />
+        </Suspense>
+      </div>
       <style>{`@media (max-width: 720px) { .satellite-wrap { display: none; } }`}</style>
     </motion.div>
   );

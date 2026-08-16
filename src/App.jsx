@@ -1,5 +1,6 @@
 import React from 'react';
 import './App.css';
+import Starfield from './components/Starfield';
 import Navbar from './components/Navbar';
 import Hero from './components/Hero';
 import About from './components/About';
@@ -12,6 +13,7 @@ import Contact from './components/Contact';
 function App() {
   return (
     <div className="app-container">
+      <Starfield />
       <Navbar />
       <Hero />
       <About />

@@ -58,12 +58,15 @@ const Satellite = () => {
   const opacity = useMotionValue(1);
 
   useEffect(() => {
-    if (reduced) return undefined;
     const target = document.getElementById('experience');
     if (!target) return undefined;
     const observer = new IntersectionObserver(
       ([entry]) => {
-        animate(opacity, entry.isIntersecting ? 0 : 1, { duration: 0.35, ease: 'easeInOut' });
+        // The reduced-motion satellite is a static glyph, not a scroll-tied
+        // one, but it still sits fixed over the same spot on screen, so it
+        // needs the same fix — just snapped instead of eased, since
+        // prefers-reduced-motion asks for no animated transitions.
+        animate(opacity, entry.isIntersecting ? 0 : 1, reduced ? { duration: 0 } : { duration: 0.35, ease: 'easeInOut' });
       },
       // Negative top/bottom margin on the observed target's own rootMargin
       // isn't a thing — rootMargin grows/shrinks the *viewport* used for the
@@ -86,10 +89,10 @@ const Satellite = () => {
 
   if (reduced) {
     return (
-      <div aria-hidden="true" className="satellite-wrap" style={{ ...wrapStyle, top: '20%' }}>
+      <motion.div aria-hidden="true" className="satellite-wrap" style={{ ...wrapStyle, top: '20%', opacity }}>
         <SatelliteGlyph />
         <style>{`@media (max-width: 720px) { .satellite-wrap { display: none; } }`}</style>
-      </div>
+      </motion.div>
     );
   }
 

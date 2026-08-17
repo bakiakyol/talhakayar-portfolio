@@ -7,6 +7,7 @@ import {
   useTransform,
   useMotionValue,
   useReducedMotion,
+  animate,
 } from 'framer-motion';
 
 // three.js + fiber + drei are a heavy dependency for one decorative element —
@@ -49,6 +50,27 @@ const Satellite = () => {
   const tilt = useSpring(rawTilt, { stiffness: 80, damping: 12, mass: 0.5 });
   const drift = useTransform(tilt, (t) => t * 1.8);
 
+  // Unlike the card-based sections, Experience lays its text out edge-to-edge
+  // with no opaque backing, right where the satellite sits horizontally — so
+  // its wireframe reads as visual noise behind the copy. Fade the satellite
+  // out while that section is in view instead of giving it a background,
+  // which would break the site's flat/no-card look for that one section.
+  const opacity = useMotionValue(1);
+
+  useEffect(() => {
+    if (reduced) return undefined;
+    const target = document.getElementById('experience');
+    if (!target) return undefined;
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        animate(opacity, entry.isIntersecting ? 0.08 : 1, { duration: 0.6, ease: 'easeInOut' });
+      },
+      { threshold: 0.12 }
+    );
+    observer.observe(target);
+    return () => observer.disconnect();
+  }, [reduced, opacity]);
+
   const wrapStyle = {
     position: 'fixed',
     right: '7%',
@@ -70,7 +92,7 @@ const Satellite = () => {
     <motion.div
       aria-hidden="true"
       className="satellite-wrap"
-      style={{ ...wrapStyle, y, x: drift, willChange: 'transform' }}
+      style={{ ...wrapStyle, y, x: drift, opacity, willChange: 'transform' }}
     >
       {/* Bank angle is fed into the 3D scene as an actual roll of the model
           (see Satellite3D), not a flat CSS rotate on this container — a

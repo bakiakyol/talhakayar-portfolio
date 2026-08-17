@@ -63,9 +63,14 @@ const Satellite = () => {
     if (!target) return undefined;
     const observer = new IntersectionObserver(
       ([entry]) => {
-        animate(opacity, entry.isIntersecting ? 0.08 : 1, { duration: 0.6, ease: 'easeInOut' });
+        animate(opacity, entry.isIntersecting ? 0 : 1, { duration: 0.35, ease: 'easeInOut' });
       },
-      { threshold: 0.12 }
+      // Negative top/bottom margin on the observed target's own rootMargin
+      // isn't a thing — rootMargin grows/shrinks the *viewport* used for the
+      // test. A positive margin here expands that viewport, so the fade
+      // starts a bit before the section's edge actually reaches the screen
+      // instead of at the exact moment it does.
+      { rootMargin: '15% 0px 15% 0px', threshold: 0 }
     );
     observer.observe(target);
     return () => observer.disconnect();

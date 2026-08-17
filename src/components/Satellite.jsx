@@ -50,34 +50,42 @@ const Satellite = () => {
   const tilt = useSpring(rawTilt, { stiffness: 80, damping: 12, mass: 0.5 });
   const drift = useTransform(tilt, (t) => t * 1.8);
 
-  // Unlike the card-based sections, Experience lays its text out edge-to-edge
-  // with no opaque backing, right where the satellite sits horizontally — so
-  // its wireframe reads as visual noise behind the copy. Fade the satellite
-  // out while that section is in view instead of giving it a background,
-  // which would break the site's flat/no-card look for that one section.
+  // When the Experience section enters the viewport the satellite "breaks
+  // orbit" and shoots off to the right — as if it has fired a thruster and
+  // departed the current track. A spring on the escape value gives it a
+  // natural ease-out as it reaches the edge and an ease-in when it returns,
+  // rather than a linear slide that would feel mechanical.
+  const rawEscape = useMotionValue(0);
+  const escapeX = useSpring(rawEscape, { stiffness: 42, damping: 18, mass: 1.1 });
   const opacity = useMotionValue(1);
+
+  // Combine the normal velocity-driven drift with the escape thrust so both
+  // axes contribute to the horizontal position simultaneously.
+  const x = useTransform([drift, escapeX], ([d, e]) => d + e);
 
   useEffect(() => {
     const target = document.getElementById('experience');
     if (!target) return undefined;
     const observer = new IntersectionObserver(
       ([entry]) => {
-        // The reduced-motion satellite is a static glyph, not a scroll-tied
-        // one, but it still sits fixed over the same spot on screen, so it
-        // needs the same fix — just snapped instead of eased, since
-        // prefers-reduced-motion asks for no animated transitions.
-        animate(opacity, entry.isIntersecting ? 0 : 1, reduced ? { duration: 0 } : { duration: 0.35, ease: 'easeInOut' });
+        if (reduced) {
+          // prefers-reduced-motion: still move, just snap instantly
+          rawEscape.set(entry.isIntersecting ? 320 : 0);
+          animate(opacity, entry.isIntersecting ? 0 : 1, { duration: 0 });
+        } else {
+          rawEscape.set(entry.isIntersecting ? 320 : 0);
+          // Subtle opacity fade complements the slide — the satellite dims
+          // slightly as it leaves, and brightens when it returns.
+          animate(opacity, entry.isIntersecting ? 0.15 : 1, { duration: 0.55, ease: 'easeInOut' });
+        }
       },
-      // Negative top/bottom margin on the observed target's own rootMargin
-      // isn't a thing — rootMargin grows/shrinks the *viewport* used for the
-      // test. A positive margin here expands that viewport, so the fade
-      // starts a bit before the section's edge actually reaches the screen
-      // instead of at the exact moment it does.
-      { rootMargin: '15% 0px 15% 0px', threshold: 0 }
+      // rootMargin expands the viewport used for the test, so the satellite
+      // starts its escape run a little before the section's edge arrives.
+      { rootMargin: '10% 0px 10% 0px', threshold: 0 }
     );
     observer.observe(target);
     return () => observer.disconnect();
-  }, [reduced, opacity]);
+  }, [reduced, rawEscape, opacity]);
 
   const wrapStyle = {
     position: 'fixed',
@@ -89,7 +97,7 @@ const Satellite = () => {
 
   if (reduced) {
     return (
-      <motion.div aria-hidden="true" className="satellite-wrap" style={{ ...wrapStyle, top: '20%', opacity }}>
+      <motion.div aria-hidden="true" className="satellite-wrap" style={{ ...wrapStyle, top: '20%', x, opacity }}>
         <SatelliteGlyph />
         <style>{`@media (max-width: 720px) { .satellite-wrap { display: none; } }`}</style>
       </motion.div>
@@ -100,7 +108,7 @@ const Satellite = () => {
     <motion.div
       aria-hidden="true"
       className="satellite-wrap"
-      style={{ ...wrapStyle, y, x: drift, opacity, willChange: 'transform' }}
+      style={{ ...wrapStyle, y, x, opacity, willChange: 'transform' }}
     >
       {/* Bank angle is fed into the 3D scene as an actual roll of the model
           (see Satellite3D), not a flat CSS rotate on this container — a
@@ -121,6 +129,7 @@ const Satellite = () => {
       <style>{`@media (max-width: 720px) { .satellite-wrap { display: none; } }`}</style>
     </motion.div>
   );
+
 };
 
 // Monochrome wireframe satellite — body, twin solar arrays, a dish on its

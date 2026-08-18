@@ -301,34 +301,50 @@ const SatelliteGlyph = () => (
   </div>
 );
 
-// Mobile: no scroll physics, no continuous orbit — the real 3D model still
-// loads (same lazy chunk, same tumble/bank animation it runs on its own via
-// useFrame), but nothing here drives it off scroll position, so there's no
-// per-frame work outside the WebGL canvas itself. It's positioned with plain
+// Mobile: no scroll physics, no JS orbit loop — the real 3D model still
+// loads and tumbles on its own via its internal useFrame, and a drift around
+// the position is layered on with a plain CSS @keyframes animation instead
+// of framer-motion's useAnimationFrame. A CSS transform animation is
+// GPU-composited and costs nothing on the main thread, unlike the desktop
+// orbit's per-frame JS — the cheap way to still get "it's alive and
+// wandering" motion on a phone. It's positioned with plain
 // `position: absolute` and no positioned ancestor between here and <body>,
 // so it sits at a fixed point in the *document* rather than the viewport,
 // scrolls away normally once the user passes the hero, and can never end up
 // parked over a paragraph further down the page the way the fixed-position
 // desktop version has to actively avoid.
-const MobileSatellite = () => (
-  <div
-    aria-hidden="true"
-    style={{
-      position: 'absolute',
-      top: '70px',
-      right: '4px',
-      width: '150px',
-      height: '120px',
-      opacity: 0.6,
-      pointerEvents: 'none',
-      zIndex: 1,
-    }}
-  >
-    <Suspense fallback={<SatelliteGlyph />}>
-      <Satellite3D tilt={0} />
-    </Suspense>
-  </div>
-);
+const MobileSatellite = () => {
+  const reduced = useReducedMotion();
+  return (
+    <div
+      aria-hidden="true"
+      style={{
+        position: 'absolute',
+        top: '70px',
+        right: '4px',
+        width: '150px',
+        height: '120px',
+        opacity: 0.6,
+        pointerEvents: 'none',
+        zIndex: 1,
+        animation: reduced ? 'none' : 'mobile-satellite-drift 9s ease-in-out infinite',
+      }}
+    >
+      <Suspense fallback={<SatelliteGlyph />}>
+        <Satellite3D tilt={0} />
+      </Suspense>
+      <style>{`
+        @keyframes mobile-satellite-drift {
+          0%   { transform: translate(0, 0) rotate(0deg); }
+          25%  { transform: translate(-14px, 10px) rotate(-4deg); }
+          50%  { transform: translate(-4px, 20px) rotate(2deg); }
+          75%  { transform: translate(10px, 8px) rotate(4deg); }
+          100% { transform: translate(0, 0) rotate(0deg); }
+        }
+      `}</style>
+    </div>
+  );
+};
 
 // Swaps between the full desktop satellite and the lightweight mobile one at
 // MOBILE_BREAKPOINT, so the heavy version's scroll listeners, orbit

@@ -301,29 +301,32 @@ const SatelliteGlyph = () => (
   </div>
 );
 
-// Mobile: no scroll physics, no continuous orbit, no WebGL canvas — just the
-// flat SVG glyph, pinned near the top of the page (not the viewport — see
-// note below) at a fixed spot and a fixed, modest opacity. It's positioned
-// with plain `position: absolute` and no positioned ancestor between here
-// and <body>, so it sits at a fixed point in the *document*, scrolls away
-// normally once the user passes the hero, and can never end up parked over
-// a paragraph further down the page the way the fixed-position desktop
-// version had to actively avoid.
+// Mobile: no scroll physics, no continuous orbit — the real 3D model still
+// loads (same lazy chunk, same tumble/bank animation it runs on its own via
+// useFrame), but nothing here drives it off scroll position, so there's no
+// per-frame work outside the WebGL canvas itself. It's positioned with plain
+// `position: absolute` and no positioned ancestor between here and <body>,
+// so it sits at a fixed point in the *document* rather than the viewport,
+// scrolls away normally once the user passes the hero, and can never end up
+// parked over a paragraph further down the page the way the fixed-position
+// desktop version has to actively avoid.
 const MobileSatellite = () => (
   <div
     aria-hidden="true"
     style={{
       position: 'absolute',
-      top: '78px',
-      right: '10px',
-      opacity: 0.5,
+      top: '70px',
+      right: '4px',
+      width: '150px',
+      height: '120px',
+      opacity: 0.6,
       pointerEvents: 'none',
-      transform: 'scale(0.4)',
-      transformOrigin: 'top right',
       zIndex: 1,
     }}
   >
-    <SatelliteGlyph />
+    <Suspense fallback={<SatelliteGlyph />}>
+      <Satellite3D tilt={0} />
+    </Suspense>
   </div>
 );
 

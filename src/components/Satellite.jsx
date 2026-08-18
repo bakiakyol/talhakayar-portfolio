@@ -7,6 +7,7 @@ import {
   useTransform,
   useMotionValue,
   useReducedMotion,
+  useAnimationFrame,
   animate,
 } from 'framer-motion';
 
@@ -16,8 +17,9 @@ import {
 const Satellite3D = lazy(() => import('./Satellite3D'));
 
 // A wireframe satellite that treats scroll like a flight path rather than a
-// slider. Two things drive it, both spring-damped instead of applied
-// directly, so it behaves like it has mass instead of snapping to input:
+// slider. Several things drive it at once, all spring-damped instead of
+// applied directly, so it behaves like it has mass instead of snapping to
+// input:
 //
 //  - Position tracks how far you are through the *whole* document (not any
 //    one section), eased through a soft spring so it settles in a beat
@@ -29,16 +31,25 @@ const Satellite3D = lazy(() => import('./Satellite3D'));
 //    settling level again once scrolling stops. A little sideways drift is
 //    coupled to the same angle, because a banking object visibly slides off
 //    its line rather than rotating in place.
+//  - A continuous, scroll-independent orbit — a slow ellipse with a smaller,
+//    faster wobble layered on top of each axis — runs the whole time, so the
+//    satellite is always circling left/right/up/down a little even while
+//    the page sits still, rather than only ever moving in a straight line
+//    down the right edge.
 const Satellite = () => {
   const reduced = useReducedMotion();
   const { scrollYProgress, scrollY } = useScroll();
   const vh = useMotionValue(typeof window !== 'undefined' ? window.innerHeight : 900);
+  const vw = useMotionValue(typeof window !== 'undefined' ? window.innerWidth : 1400);
 
   useEffect(() => {
-    const onResize = () => vh.set(window.innerHeight);
+    const onResize = () => {
+      vh.set(window.innerHeight);
+      vw.set(window.innerWidth);
+    };
     window.addEventListener('resize', onResize);
     return () => window.removeEventListener('resize', onResize);
-  }, [vh]);
+  }, [vh, vw]);
 
   // Travels from just under the navbar to just above the footer over the
   // course of the entire page.
@@ -49,6 +60,26 @@ const Satellite = () => {
   const rawTilt = useTransform(velocity, [-2400, 0, 2400], [-15, 0, 15], { clamp: true });
   const tilt = useSpring(rawTilt, { stiffness: 80, damping: 12, mass: 0.5 });
   const drift = useTransform(tilt, (t) => t * 1.8);
+
+  // Continuous orbital motion, independent of scroll — a slow ellipse (the
+  // "yörünge") with a faster, smaller secondary sine layered on each axis
+  // (the "wobble") so the loop never quite retraces itself. This runs all
+  // the time, on top of the scroll-driven downward travel and the
+  // velocity-driven bank/drift above, so the satellite reads as something
+  // actually circling rather than sliding along one straight track.
+  const rawOrbitX = useMotionValue(0);
+  const rawOrbitY = useMotionValue(0);
+  useAnimationFrame((t) => {
+    const s = t / 1000;
+    const ampX = Math.max(50, Math.min(130, vw.get() * 0.09));
+    const ampY = Math.max(26, Math.min(64, vh.get() * 0.05));
+    rawOrbitX.set(Math.cos(s * 0.22) * ampX + Math.sin(s * 0.63 + 1.3) * ampX * 0.3);
+    rawOrbitY.set(Math.sin(s * 0.22) * ampY + Math.cos(s * 0.51 + 0.7) * ampY * 0.3);
+  });
+  // Springs give the orbit weight/lag instead of tracing the sine curve
+  // exactly — the same "has mass" feel as the scroll-position spring above.
+  const orbitX = useSpring(rawOrbitX, { stiffness: 20, damping: 9, mass: 1.3 });
+  const orbitY = useSpring(rawOrbitY, { stiffness: 20, damping: 9, mass: 1.3 });
 
   // When the Experience section enters the viewport the satellite "breaks
   // orbit" and shoots off to the right — as if it has fired a thruster and
@@ -62,6 +93,13 @@ const Satellite = () => {
   // Combine the normal velocity-driven drift with the escape thrust so both
   // axes contribute to the horizontal position simultaneously.
   const x = useTransform([drift, escapeX], ([d, e]) => d + e);
+
+  // Full motion (skipped for prefers-reduced-motion): the orbit wobble rides
+  // on top of drift/escape and the scroll-position spring, so the satellite
+  // circles left/right/up/down continuously instead of only sliding
+  // vertically along the right edge.
+  const orbitedX = useTransform([x, orbitX], ([base, o]) => base + o);
+  const orbitedY = useTransform([y, orbitY], ([base, o]) => base + o);
 
   useEffect(() => {
     const target = document.getElementById('experience');
@@ -108,7 +146,7 @@ const Satellite = () => {
     <motion.div
       aria-hidden="true"
       className="satellite-wrap"
-      style={{ ...wrapStyle, y, x, opacity, willChange: 'transform' }}
+      style={{ ...wrapStyle, y: orbitedY, x: orbitedX, opacity, willChange: 'transform' }}
     >
       {/* Bank angle is fed into the 3D scene as an actual roll of the model
           (see Satellite3D), not a flat CSS rotate on this container — a

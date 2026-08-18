@@ -97,7 +97,7 @@ const SatelliteScene = ({ tilt }) => {
 const Satellite3D = ({ tilt }) => (
   <Canvas
     camera={{ position: CAMERA_POSITION, fov: FOV }}
-    gl={{ alpha: true, antialias: true }}
+    gl={{ alpha: true, antialias: true, preserveDrawingBuffer: true }}
     dpr={[1, 2]}
     style={{ background: 'transparent' }}
   >

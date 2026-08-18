@@ -301,38 +301,52 @@ const SatelliteGlyph = () => (
   </div>
 );
 
-// Mobile: no scroll physics, no JS orbit loop — the real 3D model still
-// loads and tumbles on its own via its internal useFrame, and a drift around
-// the position is layered on with a plain CSS @keyframes animation instead
-// of framer-motion's useAnimationFrame. A CSS transform animation is
-// GPU-composited and costs nothing on the main thread, unlike the desktop
-// orbit's per-frame JS — the cheap way to still get "it's alive and
-// wandering" motion on a phone. It's positioned with plain
-// `position: absolute` and no positioned ancestor between here and <body>,
-// so it sits at a fixed point in the *document* rather than the viewport,
-// scrolls away normally once the user passes the hero, and can never end up
-// parked over a paragraph further down the page the way the fixed-position
-// desktop version has to actively avoid.
+// Mobile: no bank/velocity springs, no JS orbit loop — but it does need to
+// actually respond to scroll (fixed to the viewport, not the document), so
+// it reads as sliding while you scroll instead of just idly floating in
+// place. useScroll + useTransform is cheap (framer-motion drives it off the
+// scroll event, not a per-frame tick), unlike the desktop version's velocity
+// springs and continuous useAnimationFrame orbit. It slides down a little
+// and fades out over roughly the first sixth of the page — gone well before
+// any section with real body text scrolls into view, so it still never ends
+// up parked over a paragraph the way a fixed element with no exit plan
+// would on a single-column phone layout with no side gutter to dodge into.
+// The idle CSS @keyframes wobble rides on top of that, for a bit of "alive"
+// motion even while scroll itself is still.
 const MobileSatellite = () => {
   const reduced = useReducedMotion();
+  const { scrollYProgress } = useScroll();
+  const y = useTransform(scrollYProgress, [0, 0.16], [0, 130]);
+  const x = useTransform(scrollYProgress, [0, 0.16], [0, -36]);
+  const opacity = useTransform(scrollYProgress, [0, 0.1, 0.16], [0.6, 0.55, 0]);
+
   return (
-    <div
+    <motion.div
       aria-hidden="true"
       style={{
-        position: 'absolute',
+        position: 'fixed',
         top: '70px',
         right: '4px',
         width: '150px',
         height: '120px',
-        opacity: 0.6,
         pointerEvents: 'none',
         zIndex: 1,
-        animation: reduced ? 'none' : 'mobile-satellite-drift 9s ease-in-out infinite',
+        y,
+        x,
+        opacity,
       }}
     >
-      <Suspense fallback={<SatelliteGlyph />}>
-        <Satellite3D tilt={0} />
-      </Suspense>
+      <div
+        style={{
+          width: '100%',
+          height: '100%',
+          animation: reduced ? 'none' : 'mobile-satellite-drift 9s ease-in-out infinite',
+        }}
+      >
+        <Suspense fallback={<SatelliteGlyph />}>
+          <Satellite3D tilt={0} />
+        </Suspense>
+      </div>
       <style>{`
         @keyframes mobile-satellite-drift {
           0%   { transform: translate(0, 0) rotate(0deg); }
@@ -342,7 +356,7 @@ const MobileSatellite = () => {
           100% { transform: translate(0, 0) rotate(0deg); }
         }
       `}</style>
-    </div>
+    </motion.div>
   );
 };
 

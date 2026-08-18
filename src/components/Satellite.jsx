@@ -316,8 +316,14 @@ const SatelliteGlyph = () => (
 const MobileSatellite = () => {
   const reduced = useReducedMotion();
   const { scrollYProgress } = useScroll();
-  const y = useTransform(scrollYProgress, [0, 0.16], [0, 130]);
-  const x = useTransform(scrollYProgress, [0, 0.16], [0, -36]);
+  const rawY = useTransform(scrollYProgress, [0, 0.16], [0, 130]);
+  const rawX = useTransform(scrollYProgress, [0, 0.16], [0, -36]);
+  // Springs absorb the burstiness of real touch-scroll delivery (events
+  // arrive in clumps, not a steady stream) so the slide reads as smooth
+  // motion instead of following the raw scroll position 1:1 and visibly
+  // stepping/"takılarak" with it.
+  const y = useSpring(rawY, { stiffness: 90, damping: 20, mass: 0.5 });
+  const x = useSpring(rawX, { stiffness: 90, damping: 20, mass: 0.5 });
   const opacity = useTransform(scrollYProgress, [0, 0.1, 0.16], [0.6, 0.55, 0]);
 
   return (
@@ -344,7 +350,7 @@ const MobileSatellite = () => {
         }}
       >
         <Suspense fallback={<SatelliteGlyph />}>
-          <Satellite3D tilt={0} />
+          <Satellite3D tilt={0} dpr={1} antialias={false} />
         </Suspense>
       </div>
       <style>{`

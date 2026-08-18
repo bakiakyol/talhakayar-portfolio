@@ -30,10 +30,14 @@ const Satellite3D = lazy(() => import('./Satellite3D'));
 const CONTENT_MAX = 1040; // .section max-width, border-box (padding included)
 const SAT_W = 260; // satellite-wrap box width at full (1x) scale
 const CLEARANCE = 16; // desired min gap, in px, between the box and the text column edge
-const MIN_SCALE = 0.65; // floor — below this the model reads as broken, not "smaller"
-const FULL_SCALE_GUTTER = 220; // gutter width at which it's already back to full size
-const FADE_RANGE = 90; // px of residual overlap over which opacity ramps down
-const MIN_OPACITY = 0.15;
+const MIN_SCALE = 0.5; // floor — below this the model reads as broken, not "smaller"
+const FULL_SCALE_GUTTER = 200; // gutter width at which it's already back to full size
+// Opacity is a light safety net now, not a second line of defense stacked on
+// top of the shrink — it only needs to soften whatever residual overlap the
+// shrink alone doesn't clear, so it stays subtle instead of reading as
+// "always faded".
+const FADE_RANGE = 260; // px of residual overlap over which opacity ramps down
+const MIN_OPACITY = 0.8;
 
 // Shared pure functions (module scope, not hooks) so the scale and position
 // motion values below derive from the exact same geometry.

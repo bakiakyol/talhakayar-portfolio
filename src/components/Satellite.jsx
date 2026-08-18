@@ -116,7 +116,15 @@ const Satellite = () => {
 
   const velocity = useVelocity(scrollY);
   const rawTilt = useTransform(velocity, [-2400, 0, 2400], [-15, 0, 15], { clamp: true });
-  const tilt = useSpring(rawTilt, { stiffness: 80, damping: 12, mass: 0.5 });
+  // Softer and more underdamped than before: the old spring (stiffness 80,
+  // damping 12) was near-critically-damped, so the bank angle snapped back
+  // level almost the instant scroll velocity dropped to 0 — which on
+  // desktop (no inertial/momentum scrolling) happens the moment the wheel
+  // stops. Lower stiffness slows that return down, and lower damping lets
+  // it swing past level and settle rather than snapping straight back, so
+  // releasing the scroll still reads as the satellite carrying a beat of
+  // its own momentum instead of stopping on a dime.
+  const tilt = useSpring(rawTilt, { stiffness: 24, damping: 5, mass: 0.8 });
   const drift = useTransform(tilt, (t) => t * 1.8);
 
   // Continuous orbital motion, independent of scroll — a slow ellipse (the

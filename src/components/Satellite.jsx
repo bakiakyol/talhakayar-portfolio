@@ -383,8 +383,88 @@ const MobileSatellite = () => {
           }
         `}</style>
       </motion.div>
+      {FLYBY_WAYPOINTS.map((wp) => (
+        <MobileFlybySatellite key={wp.id} {...wp} reduced={reduced} />
+      ))}
       <MobileContactSatellite reduced={reduced} />
     </>
+  );
+};
+
+// Section boundaries where the satellite makes a brief, one-off appearance
+// instead of just being gone for the whole stretch between About and
+// Contact — enters from alternating sides so consecutive flybys don't read
+// as the same beat repeating. `top` is a viewport-relative % so it lands
+// roughly where that section boundary's own whitespace is, without needing
+// per-waypoint pixel tuning.
+const FLYBY_WAYPOINTS = [
+  { id: 'experience', side: 'right', top: '26%' },
+  { id: 'projects', side: 'left', top: '58%' },
+  { id: 'certificates', side: 'right', top: '38%' },
+];
+const FLYBY_TRAVEL = 220; // px off-screen to start/end from
+const FLYBY_HOLD_MS = 1400; // how long it lingers before exiting again
+
+// One-shot "flyby": hidden the entire time, until its section's boundary
+// crosses the middle of the viewport (same rootMargin trick Navbar uses to
+// detect the active section), at which point it slides in from `side`,
+// holds briefly, then slides back out the way it came and never triggers
+// again. No scroll-linked position math — it's a timed enter/hold/exit
+// sequence played once, so it can't end up parked over text the way a
+// continuously-visible satellite would need active clearance logic to avoid
+// on a single-column phone layout.
+const MobileFlybySatellite = ({ id, side, top, reduced }) => {
+  const x = useMotionValue(side === 'right' ? FLYBY_TRAVEL : -FLYBY_TRAVEL);
+  const opacity = useMotionValue(0);
+
+  useEffect(() => {
+    const el = document.getElementById(id);
+    if (!el) return undefined;
+    let played = false;
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (!entry.isIntersecting || played) return;
+        played = true;
+        if (reduced) {
+          x.set(0);
+          animate(opacity, 0.5, { duration: 0.3 });
+          setTimeout(() => animate(opacity, 0, { duration: 0.3 }), FLYBY_HOLD_MS);
+          return;
+        }
+        animate(x, 0, { type: 'spring', stiffness: 60, damping: 14, mass: 0.7 });
+        animate(opacity, 0.55, { duration: 0.5 });
+        setTimeout(() => {
+          const exitX = side === 'right' ? FLYBY_TRAVEL : -FLYBY_TRAVEL;
+          animate(x, exitX, { type: 'spring', stiffness: 60, damping: 16, mass: 0.7 });
+          animate(opacity, 0, { duration: 0.5 });
+        }, FLYBY_HOLD_MS);
+      },
+      { rootMargin: '-45% 0px -45% 0px', threshold: 0 }
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [id, side, x, opacity, reduced]);
+
+  return (
+    <motion.div
+      aria-hidden="true"
+      style={{
+        position: 'fixed',
+        top,
+        [side]: '-6px',
+        width: '110px',
+        height: '90px',
+        pointerEvents: 'none',
+        zIndex: 1,
+        x,
+        opacity,
+      }}
+    >
+      <Suspense fallback={<SatelliteGlyph />}>
+        <Satellite3D tilt={0} />
+      </Suspense>
+    </motion.div>
   );
 };
 

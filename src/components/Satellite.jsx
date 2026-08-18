@@ -21,23 +21,25 @@ const Satellite3D = lazy(() => import('./Satellite3D'));
 // both derived from how much real space exists past that column's edge at
 // the current viewport width — on wide screens it sits at the original
 // design position at full size; on the many desktop widths (~1100–1500px)
-// where a 260px box simply does not fit beside the text, it shrinks to fit
-// the gutter instead of overlapping it. Live opacity fade is the last resort
-// for whatever residual overlap remains once it's already as small and as
-// far right as it can be. This replaces the old per-section "escape right
-// when Experience is in view" trick, which only covered one section and
-// read as a glitch.
+// where a 260px box doesn't fully fit beside the text, it shrinks moderately
+// (never below MIN_SCALE — small enough to help, not so small it reads as
+// broken) and hugs the gutter, and live opacity fade covers whatever
+// overlap that partial shrink doesn't solve. This replaces the old
+// per-section "escape right when Experience is in view" trick, which only
+// covered one section and read as a glitch.
 const CONTENT_MAX = 1040; // .section max-width, border-box (padding included)
 const SAT_W = 260; // satellite-wrap box width at full (1x) scale
 const CLEARANCE = 16; // desired min gap, in px, between the box and the text column edge
-const MIN_SCALE = 0.4; // never shrink the model past readability of its own shape
+const MIN_SCALE = 0.65; // floor — below this the model reads as broken, not "smaller"
+const FULL_SCALE_GUTTER = 220; // gutter width at which it's already back to full size
 const FADE_RANGE = 90; // px of residual overlap over which opacity ramps down
 const MIN_OPACITY = 0.15;
 
 // Shared pure functions (module scope, not hooks) so the scale and position
 // motion values below derive from the exact same geometry.
 const gutterFor = (w) => Math.max(0, w / 2 - Math.min(w, CONTENT_MAX) / 2);
-const scaleFor = (w) => Math.min(1, Math.max(MIN_SCALE, (gutterFor(w) - CLEARANCE) / SAT_W));
+const scaleFor = (w) =>
+  Math.min(1, Math.max(MIN_SCALE, (gutterFor(w) - CLEARANCE) / (FULL_SCALE_GUTTER - CLEARANCE)));
 const rightFor = (w) => {
   const g = gutterFor(w);
   const effectiveW = SAT_W * scaleFor(w);

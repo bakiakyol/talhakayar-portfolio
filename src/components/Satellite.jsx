@@ -1,4 +1,4 @@
-import React, { useEffect, Suspense, lazy } from 'react';
+import React, { useEffect, useState, Suspense, lazy } from 'react';
 import {
   motion,
   useScroll,
@@ -50,6 +50,27 @@ const rightFor = (w) => {
   const idealR = w * 0.07;
   const maxR = Math.max(4, g - effectiveW - CLEARANCE / 2);
   return Math.min(idealR, maxR);
+};
+
+// Below this width the desktop treatment (scroll physics, continuous orbit,
+// WebGL model) doesn't fit — a phone-width text column leaves no gutter at
+// all, and running that whole animation stack for a decorative element on a
+// phone is wasted battery. MobileSatellite (bottom of file) swaps in
+// instead: a small static glyph, no scroll/orbit math, no 3D canvas.
+const MOBILE_BREAKPOINT = 720;
+
+const useIsMobile = () => {
+  const [isMobile, setIsMobile] = useState(
+    typeof window !== 'undefined' ? window.innerWidth <= MOBILE_BREAKPOINT : false
+  );
+  useEffect(() => {
+    const mql = window.matchMedia(`(max-width: ${MOBILE_BREAKPOINT}px)`);
+    const onChange = () => setIsMobile(mql.matches);
+    onChange();
+    mql.addEventListener('change', onChange);
+    return () => mql.removeEventListener('change', onChange);
+  }, []);
+  return isMobile;
 };
 
 // A wireframe satellite that treats scroll like a flight path rather than a
@@ -168,7 +189,6 @@ const Satellite = () => {
         style={{ ...wrapStyle, top: '20%', x: drift, scale, opacity }}
       >
         <SatelliteGlyph />
-        <style>{`@media (max-width: 720px) { .satellite-wrap { display: none; } }`}</style>
       </motion.div>
     );
   }
@@ -195,7 +215,6 @@ const Satellite = () => {
           <Satellite3D tilt={tilt} />
         </Suspense>
       </div>
-      <style>{`@media (max-width: 720px) { .satellite-wrap { display: none; } }`}</style>
     </motion.div>
   );
 
@@ -282,4 +301,39 @@ const SatelliteGlyph = () => (
   </div>
 );
 
-export default Satellite;
+// Mobile: no scroll physics, no continuous orbit, no WebGL canvas — just the
+// flat SVG glyph, pinned near the top of the page (not the viewport — see
+// note below) at a fixed spot and a fixed, modest opacity. It's positioned
+// with plain `position: absolute` and no positioned ancestor between here
+// and <body>, so it sits at a fixed point in the *document*, scrolls away
+// normally once the user passes the hero, and can never end up parked over
+// a paragraph further down the page the way the fixed-position desktop
+// version had to actively avoid.
+const MobileSatellite = () => (
+  <div
+    aria-hidden="true"
+    style={{
+      position: 'absolute',
+      top: '78px',
+      right: '10px',
+      opacity: 0.5,
+      pointerEvents: 'none',
+      transform: 'scale(0.4)',
+      transformOrigin: 'top right',
+      zIndex: 1,
+    }}
+  >
+    <SatelliteGlyph />
+  </div>
+);
+
+// Swaps between the full desktop satellite and the lightweight mobile one at
+// MOBILE_BREAKPOINT, so the heavy version's scroll listeners, orbit
+// useAnimationFrame loop, and lazy-loaded 3D chunk simply never mount on a
+// phone-width viewport.
+const SatelliteRoot = () => {
+  const isMobile = useIsMobile();
+  return isMobile ? <MobileSatellite /> : <Satellite />;
+};
+
+export default SatelliteRoot;

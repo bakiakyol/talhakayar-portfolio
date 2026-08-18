@@ -8,6 +8,7 @@ import {
   useMotionValue,
   useReducedMotion,
   useAnimationFrame,
+  animate,
 } from 'framer-motion';
 
 // three.js + fiber + drei are a heavy dependency for one decorative element —
@@ -312,7 +313,10 @@ const SatelliteGlyph = () => (
 // up parked over a paragraph the way a fixed element with no exit plan
 // would on a single-column phone layout with no side gutter to dodge into.
 // The idle CSS @keyframes wobble rides on top of that, for a bit of "alive"
-// motion even while scroll itself is still.
+// motion even while scroll itself is still. A second instance (below) fades
+// back in only once Contact scrolls into view and sits still in the empty
+// space under its content — the satellite reappearing to "land" at the end
+// of the page instead of just staying gone from About onward.
 const MobileSatellite = () => {
   const reduced = useReducedMotion();
   const { scrollYProgress } = useScroll();
@@ -324,44 +328,124 @@ const MobileSatellite = () => {
   // stepping/"takılarak" with it.
   const y = useSpring(rawY, { stiffness: 90, damping: 20, mass: 0.5 });
   const x = useSpring(rawX, { stiffness: 90, damping: 20, mass: 0.5 });
-  const opacity = useTransform(scrollYProgress, [0, 0.1, 0.16], [0.6, 0.55, 0]);
+  // Derived from the already-sprung `y` (0→130) rather than independently
+  // from scrollYProgress — on a large/fast scroll jump, a separate
+  // useTransform reading the same scrollYProgress source intermittently
+  // stuck at its start value instead of tracking to the end of its range,
+  // even though x/y (also reading scrollYProgress) updated correctly.
+  // Chaining off y sidesteps it entirely and keeps the fade visually
+  // in lockstep with the slide.
+  const opacity = useTransform(y, [0, 100, 130], [0.6, 0.55, 0]);
+
+  return (
+    <>
+      <motion.div
+        aria-hidden="true"
+        style={{
+          position: 'fixed',
+          top: '70px',
+          right: '4px',
+          width: '150px',
+          height: '120px',
+          pointerEvents: 'none',
+          zIndex: 1,
+          y,
+          x,
+          opacity,
+        }}
+      >
+        <div
+          style={{
+            width: '100%',
+            height: '100%',
+            animation: reduced ? 'none' : 'mobile-satellite-drift 9s ease-in-out infinite',
+          }}
+        >
+          <Suspense fallback={<SatelliteGlyph />}>
+            <Satellite3D tilt={0} />
+          </Suspense>
+        </div>
+        <style>{`
+          @keyframes mobile-satellite-drift {
+            0%   { transform: translate(0, 0) rotate(0deg); }
+            25%  { transform: translate(-14px, 10px) rotate(-4deg); }
+            50%  { transform: translate(-4px, 20px) rotate(2deg); }
+            75%  { transform: translate(10px, 8px) rotate(4deg); }
+            100% { transform: translate(0, 0) rotate(0deg); }
+          }
+        `}</style>
+      </motion.div>
+      <MobileContactSatellite reduced={reduced} />
+    </>
+  );
+};
+
+// Positioned once, in document coordinates, inside the empty space below
+// Contact's content (its own bottom padding creates that gap — see
+// Contact.jsx). Plain `position: absolute` with no positioned ancestor, so —
+// like the Hero instance — it's pinned to a spot in the page rather than the
+// viewport and needs no per-frame scroll math at all; an IntersectionObserver
+// just fades it in when that spot scrolls into view and back out when it
+// doesn't, instead of it being visible (and needing text-clearance logic)
+// for the entire stretch of page between About and Contact.
+const MobileContactSatellite = ({ reduced }) => {
+  const [top, setTop] = useState(null);
+  const opacity = useMotionValue(0);
+
+  useEffect(() => {
+    const el = document.getElementById('contact');
+    if (!el) return undefined;
+
+    // Contact's own paddingBottom (180px, see Contact.jsx) is the empty gap
+    // below its content — center the satellite in that gap, not flush
+    // against the section's outer edge.
+    const measure = () => setTop(el.offsetTop + el.offsetHeight - 100);
+    // Measured again inside the observer callback, not just once on mount:
+    // fonts/webfont swap can still reflow the section's height after the
+    // initial mount measurement, which previously left this parked well
+    // above the real gap (over the email/LinkedIn rows instead of below
+    // the button).
+    measure();
+    window.addEventListener('resize', measure);
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        measure();
+        animate(opacity, entry.isIntersecting ? 0.55 : 0, {
+          duration: reduced ? 0 : 0.6,
+          ease: 'easeInOut',
+        });
+      },
+      { threshold: 0.2 }
+    );
+    observer.observe(el);
+
+    return () => {
+      window.removeEventListener('resize', measure);
+      observer.disconnect();
+    };
+  }, [opacity, reduced]);
+
+  if (top == null) return null;
 
   return (
     <motion.div
       aria-hidden="true"
       style={{
-        position: 'fixed',
-        top: '70px',
-        right: '4px',
-        width: '150px',
-        height: '120px',
+        position: 'absolute',
+        top: `${top}px`,
+        left: '50%',
+        x: '-50%',
+        width: '130px',
+        height: '105px',
         pointerEvents: 'none',
         zIndex: 1,
-        y,
-        x,
         opacity,
       }}
     >
-      <div
-        style={{
-          width: '100%',
-          height: '100%',
-          animation: reduced ? 'none' : 'mobile-satellite-drift 9s ease-in-out infinite',
-        }}
-      >
-        <Suspense fallback={<SatelliteGlyph />}>
-          <Satellite3D tilt={0} dpr={1} antialias={false} />
-        </Suspense>
-      </div>
-      <style>{`
-        @keyframes mobile-satellite-drift {
-          0%   { transform: translate(0, 0) rotate(0deg); }
-          25%  { transform: translate(-14px, 10px) rotate(-4deg); }
-          50%  { transform: translate(-4px, 20px) rotate(2deg); }
-          75%  { transform: translate(10px, 8px) rotate(4deg); }
-          100% { transform: translate(0, 0) rotate(0deg); }
-        }
-      `}</style>
+      <Suspense fallback={<SatelliteGlyph />}>
+        <Satellite3D tilt={0} />
+      </Suspense>
     </motion.div>
   );
 };

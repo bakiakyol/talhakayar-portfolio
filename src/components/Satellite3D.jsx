@@ -94,11 +94,15 @@ const SatelliteScene = ({ tilt }) => {
 // object. Camera framing is solved analytically (see CAMERA_* above) against
 // the model's fixed normalized radius, with margin, so tumble/bank never
 // clips against the canvas edge.
-const Satellite3D = ({ tilt }) => (
+// dpr/antialias are overridable (mobile passes a lower/fixed dpr and drops
+// MSAA) — phone GPUs pay disproportionately for both, and that cost lands
+// on the same main/compositor thread that's also busy handling scroll,
+// which is what read as the mobile satellite "sticking"/stepping as it slid.
+const Satellite3D = ({ tilt, dpr = [1, 2], antialias = true }) => (
   <Canvas
     camera={{ position: CAMERA_POSITION, fov: FOV }}
-    gl={{ alpha: true, antialias: true }}
-    dpr={[1, 2]}
+    gl={{ alpha: true, antialias, preserveDrawingBuffer: true }}
+    dpr={dpr}
     style={{ background: 'transparent' }}
   >
     <React.Suspense fallback={null}>

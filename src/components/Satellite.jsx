@@ -1,4 +1,4 @@
-import React, { useEffect, Suspense, lazy } from 'react';
+import React, { useEffect, useState, Suspense, lazy } from 'react';
 import {
   motion,
   useScroll,
@@ -7,6 +7,8 @@ import {
   useTransform,
   useMotionValue,
   useReducedMotion,
+  useAnimationFrame,
+  animate,
 } from 'framer-motion';
 
 // three.js + fiber + drei are a heavy dependency for one decorative element —
@@ -14,9 +16,68 @@ import {
 // instead of blocking it.
 const Satellite3D = lazy(() => import('./Satellite3D'));
 
+// Text sits in a centered column (see .section in index.css: max-width
+// 1040px, box-sizing: border-box so that 1040px is the *outer* width,
+// padding included). Below, the satellite's size and horizontal position are
+// both derived from how much real space exists past that column's edge at
+// the current viewport width — on wide screens it sits at the original
+// design position at full size; on the many desktop widths (~1100–1500px)
+// where a 260px box doesn't fully fit beside the text, it shrinks moderately
+// (never below MIN_SCALE — small enough to help, not so small it reads as
+// broken) and hugs the gutter, and live opacity fade covers whatever
+// overlap that partial shrink doesn't solve. This replaces the old
+// per-section "escape right when Experience is in view" trick, which only
+// covered one section and read as a glitch.
+const CONTENT_MAX = 1040; // .section max-width, border-box (padding included)
+const SAT_W = 260; // satellite-wrap box width at full (1x) scale
+const CLEARANCE = 16; // desired min gap, in px, between the box and the text column edge
+const MIN_SCALE = 0.5; // floor — below this the model reads as broken, not "smaller"
+const FULL_SCALE_GUTTER = 200; // gutter width at which it's already back to full size
+// Opacity is a light safety net now, not a second line of defense stacked on
+// top of the shrink — it only needs to soften whatever residual overlap the
+// shrink alone doesn't clear, so it stays subtle instead of reading as
+// "always faded".
+const FADE_RANGE = 260; // px of residual overlap over which opacity ramps down
+const MIN_OPACITY = 0.8;
+
+// Shared pure functions (module scope, not hooks) so the scale and position
+// motion values below derive from the exact same geometry.
+const gutterFor = (w) => Math.max(0, w / 2 - Math.min(w, CONTENT_MAX) / 2);
+const scaleFor = (w) =>
+  Math.min(1, Math.max(MIN_SCALE, (gutterFor(w) - CLEARANCE) / (FULL_SCALE_GUTTER - CLEARANCE)));
+const rightFor = (w) => {
+  const g = gutterFor(w);
+  const effectiveW = SAT_W * scaleFor(w);
+  const idealR = w * 0.07;
+  const maxR = Math.max(4, g - effectiveW - CLEARANCE / 2);
+  return Math.min(idealR, maxR);
+};
+
+// Below this width the desktop treatment (scroll physics, continuous orbit,
+// WebGL model) doesn't fit — a phone-width text column leaves no gutter at
+// all, and running that whole animation stack for a decorative element on a
+// phone is wasted battery. MobileSatellite (bottom of file) swaps in
+// instead: a small static glyph, no scroll/orbit math, no 3D canvas.
+const MOBILE_BREAKPOINT = 720;
+
+const useIsMobile = () => {
+  const [isMobile, setIsMobile] = useState(
+    typeof window !== 'undefined' ? window.innerWidth <= MOBILE_BREAKPOINT : false
+  );
+  useEffect(() => {
+    const mql = window.matchMedia(`(max-width: ${MOBILE_BREAKPOINT}px)`);
+    const onChange = () => setIsMobile(mql.matches);
+    onChange();
+    mql.addEventListener('change', onChange);
+    return () => mql.removeEventListener('change', onChange);
+  }, []);
+  return isMobile;
+};
+
 // A wireframe satellite that treats scroll like a flight path rather than a
-// slider. Two things drive it, both spring-damped instead of applied
-// directly, so it behaves like it has mass instead of snapping to input:
+// slider. Several things drive it at once, all spring-damped instead of
+// applied directly, so it behaves like it has mass instead of snapping to
+// input:
 //
 //  - Position tracks how far you are through the *whole* document (not any
 //    one section), eased through a soft spring so it settles in a beat
@@ -28,16 +89,25 @@ const Satellite3D = lazy(() => import('./Satellite3D'));
 //    settling level again once scrolling stops. A little sideways drift is
 //    coupled to the same angle, because a banking object visibly slides off
 //    its line rather than rotating in place.
+//  - A continuous, scroll-independent orbit — a slow ellipse with a smaller,
+//    faster wobble layered on top of each axis — runs the whole time, so the
+//    satellite is always circling left/right/up/down a little even while
+//    the page sits still, rather than only ever moving in a straight line
+//    down the right edge.
 const Satellite = () => {
   const reduced = useReducedMotion();
   const { scrollYProgress, scrollY } = useScroll();
   const vh = useMotionValue(typeof window !== 'undefined' ? window.innerHeight : 900);
+  const vw = useMotionValue(typeof window !== 'undefined' ? window.innerWidth : 1400);
 
   useEffect(() => {
-    const onResize = () => vh.set(window.innerHeight);
+    const onResize = () => {
+      vh.set(window.innerHeight);
+      vw.set(window.innerWidth);
+    };
     window.addEventListener('resize', onResize);
     return () => window.removeEventListener('resize', onResize);
-  }, [vh]);
+  }, [vh, vw]);
 
   // Travels from just under the navbar to just above the footer over the
   // course of the entire page.
@@ -46,12 +116,75 @@ const Satellite = () => {
 
   const velocity = useVelocity(scrollY);
   const rawTilt = useTransform(velocity, [-2400, 0, 2400], [-15, 0, 15], { clamp: true });
-  const tilt = useSpring(rawTilt, { stiffness: 80, damping: 12, mass: 0.5 });
+  // Softer and more underdamped than before: the old spring (stiffness 80,
+  // damping 12) was near-critically-damped, so the bank angle snapped back
+  // level almost the instant scroll velocity dropped to 0 — which on
+  // desktop (no inertial/momentum scrolling) happens the moment the wheel
+  // stops. Lower stiffness slows that return down, and lower damping lets
+  // it swing past level and settle rather than snapping straight back, so
+  // releasing the scroll still reads as the satellite carrying a beat of
+  // its own momentum instead of stopping on a dime.
+  const tilt = useSpring(rawTilt, { stiffness: 24, damping: 5, mass: 0.8 });
   const drift = useTransform(tilt, (t) => t * 1.8);
+
+  // Continuous orbital motion, independent of scroll — a slow ellipse (the
+  // "yörünge") with a faster, smaller secondary sine layered on each axis
+  // (the "wobble") so the loop never quite retraces itself. This runs all
+  // the time, on top of the scroll-driven downward travel and the
+  // velocity-driven bank/drift above, so the satellite reads as something
+  // actually circling rather than sliding along one straight track.
+  const rawOrbitX = useMotionValue(0);
+  const rawOrbitY = useMotionValue(0);
+  useAnimationFrame((t) => {
+    const s = t / 1000;
+    const ampX = Math.max(50, Math.min(130, vw.get() * 0.09));
+    const ampY = Math.max(26, Math.min(64, vh.get() * 0.05));
+    rawOrbitX.set(Math.cos(s * 0.22) * ampX + Math.sin(s * 0.63 + 1.3) * ampX * 0.3);
+    rawOrbitY.set(Math.sin(s * 0.22) * ampY + Math.cos(s * 0.51 + 0.7) * ampY * 0.3);
+  });
+  // Springs give the orbit weight/lag instead of tracing the sine curve
+  // exactly — the same "has mass" feel as the scroll-position spring above.
+  const orbitX = useSpring(rawOrbitX, { stiffness: 20, damping: 9, mass: 1.3 });
+  const orbitY = useSpring(rawOrbitY, { stiffness: 20, damping: 9, mass: 1.3 });
+
+  // Dynamic size + right offset: the original design is 7% of viewport width
+  // from the edge at full (1x) size, but a 260px box simply doesn't fit in
+  // the gutter on common laptop widths (~1100–1500px, where the text column
+  // still eats most of the screen). There, shrink the model down to whatever
+  // scale actually fits the remaining space (never below MIN_SCALE) and hug
+  // that space instead of the fixed 7% — so it's smaller and safely beside
+  // the text rather than full-size and on top of it.
+  const rawScale = useTransform(vw, scaleFor);
+  const scale = useSpring(rawScale, { stiffness: 70, damping: 22 });
+  const rawRight = useTransform(vw, rightFor);
+  const right = useSpring(rawRight, { stiffness: 60, damping: 20 });
+  const rightPx = useTransform(right, (r) => `${r}px`);
+
+  // Full motion (skipped for prefers-reduced-motion): the orbit wobble rides
+  // on top of drift and the scroll-position spring, so the satellite circles
+  // left/right/up/down continuously instead of only sliding vertically along
+  // the right edge.
+  const orbitedX = useTransform([drift, orbitX], ([d, o]) => d + o);
+  const orbitedY = useTransform([y, orbitY], ([base, o]) => base + o);
+
+  // Live overlap check, every frame: where the satellite's actual left edge
+  // (right offset + whatever the drift/wobble is doing right now) sits
+  // relative to the text column's actual right edge. Positive = overdrawn
+  // over text by that many px; opacity ramps down over FADE_RANGE instead of
+  // snapping, and recovers the same way once it clears again.
+  const rawOverlap = useTransform([vw, right, orbitedX], ([w, r, ox]) => {
+    const contentEdge = w / 2 + Math.min(w, CONTENT_MAX) / 2;
+    const leftEdge = w - r - SAT_W + ox;
+    return contentEdge - leftEdge;
+  });
+  const rawClearOpacity = useTransform(rawOverlap, (o) =>
+    o <= 0 ? 1 : Math.max(MIN_OPACITY, 1 - o / FADE_RANGE)
+  );
+  const opacity = useSpring(rawClearOpacity, { stiffness: 90, damping: 22 });
 
   const wrapStyle = {
     position: 'fixed',
-    right: '7%',
+    right: rightPx,
     top: 0,
     zIndex: 1,
     pointerEvents: 'none',
@@ -59,10 +192,13 @@ const Satellite = () => {
 
   if (reduced) {
     return (
-      <div aria-hidden="true" className="satellite-wrap" style={{ ...wrapStyle, top: '20%' }}>
+      <motion.div
+        aria-hidden="true"
+        className="satellite-wrap"
+        style={{ ...wrapStyle, top: '20%', x: drift, scale, opacity }}
+      >
         <SatelliteGlyph />
-        <style>{`@media (max-width: 720px) { .satellite-wrap { display: none; } }`}</style>
-      </div>
+      </motion.div>
     );
   }
 
@@ -70,7 +206,7 @@ const Satellite = () => {
     <motion.div
       aria-hidden="true"
       className="satellite-wrap"
-      style={{ ...wrapStyle, y, x: drift, willChange: 'transform' }}
+      style={{ ...wrapStyle, y: orbitedY, x: orbitedX, scale, opacity, willChange: 'transform' }}
     >
       {/* Bank angle is fed into the 3D scene as an actual roll of the model
           (see Satellite3D), not a flat CSS rotate on this container — a
@@ -88,9 +224,9 @@ const Satellite = () => {
           <Satellite3D tilt={tilt} />
         </Suspense>
       </div>
-      <style>{`@media (max-width: 720px) { .satellite-wrap { display: none; } }`}</style>
     </motion.div>
   );
+
 };
 
 // Monochrome wireframe satellite — body, twin solar arrays, a dish on its
@@ -174,4 +310,261 @@ const SatelliteGlyph = () => (
   </div>
 );
 
-export default Satellite;
+// Mobile: no bank/velocity springs, no JS orbit loop — but it does need to
+// actually respond to scroll (fixed to the viewport, not the document), so
+// it reads as sliding while you scroll instead of just idly floating in
+// place. useScroll + useTransform is cheap (framer-motion drives it off the
+// scroll event, not a per-frame tick), unlike the desktop version's velocity
+// springs and continuous useAnimationFrame orbit. It slides down a little
+// and fades out over roughly the first sixth of the page — gone well before
+// any section with real body text scrolls into view, so it still never ends
+// up parked over a paragraph the way a fixed element with no exit plan
+// would on a single-column phone layout with no side gutter to dodge into.
+// The idle CSS @keyframes wobble rides on top of that, for a bit of "alive"
+// motion even while scroll itself is still. A second instance (below) fades
+// back in only once Contact scrolls into view and sits still in the empty
+// space under its content — the satellite reappearing to "land" at the end
+// of the page instead of just staying gone from About onward.
+const MobileSatellite = () => {
+  const reduced = useReducedMotion();
+  const { scrollYProgress } = useScroll();
+  const rawY = useTransform(scrollYProgress, [0, 0.16], [0, 130]);
+  const rawX = useTransform(scrollYProgress, [0, 0.16], [0, -36]);
+  // Springs absorb the burstiness of real touch-scroll delivery (events
+  // arrive in clumps, not a steady stream) so the slide reads as smooth
+  // motion instead of following the raw scroll position 1:1 and visibly
+  // stepping/"takılarak" with it.
+  const y = useSpring(rawY, { stiffness: 90, damping: 20, mass: 0.5 });
+  const x = useSpring(rawX, { stiffness: 90, damping: 20, mass: 0.5 });
+  // Derived from the already-sprung `y` (0→130) rather than independently
+  // from scrollYProgress — on a large/fast scroll jump, a separate
+  // useTransform reading the same scrollYProgress source intermittently
+  // stuck at its start value instead of tracking to the end of its range,
+  // even though x/y (also reading scrollYProgress) updated correctly.
+  // Chaining off y sidesteps it entirely and keeps the fade visually
+  // in lockstep with the slide.
+  const opacity = useTransform(y, [0, 100, 130], [0.6, 0.55, 0]);
+
+  return (
+    <>
+      <motion.div
+        aria-hidden="true"
+        style={{
+          position: 'fixed',
+          top: '65px',
+          right: '4px',
+          width: '178px',
+          height: '142px',
+          pointerEvents: 'none',
+          zIndex: 1,
+          y,
+          x,
+          opacity,
+        }}
+      >
+        <div
+          style={{
+            width: '100%',
+            height: '100%',
+            animation: reduced ? 'none' : 'mobile-satellite-drift 9s ease-in-out infinite',
+          }}
+        >
+          <Suspense fallback={<SatelliteGlyph />}>
+            <Satellite3D tilt={0} />
+          </Suspense>
+        </div>
+        <style>{`
+          @keyframes mobile-satellite-drift {
+            0%   { transform: translate(0, 0) rotate(0deg); }
+            25%  { transform: translate(-14px, 10px) rotate(-4deg); }
+            50%  { transform: translate(-4px, 20px) rotate(2deg); }
+            75%  { transform: translate(10px, 8px) rotate(4deg); }
+            100% { transform: translate(0, 0) rotate(0deg); }
+          }
+        `}</style>
+      </motion.div>
+      {FLYBY_WAYPOINTS.map((wp) => (
+        <MobileFlybySatellite key={wp.id} {...wp} reduced={reduced} />
+      ))}
+      <MobileContactSatellite reduced={reduced} />
+    </>
+  );
+};
+
+// Section boundaries where the satellite makes a brief, one-off appearance
+// instead of just being gone for the whole stretch between About and
+// Contact — enters from alternating sides so consecutive flybys don't read
+// as the same beat repeating. `top` is a viewport-relative % so it lands
+// roughly where that section boundary's own whitespace is, without needing
+// per-waypoint pixel tuning.
+const FLYBY_WAYPOINTS = [
+  { id: 'experience', side: 'right', top: '26%', holdMs: 1250 },
+  { id: 'projects', side: 'left', top: '58%', holdMs: 1750 },
+  { id: 'certificates', side: 'right', top: '38%', holdMs: 1500 },
+];
+const FLYBY_TRAVEL = 220; // px off-screen to start/end from
+
+// One-shot "flyby": hidden the entire time, until its section's boundary
+// crosses the middle of the viewport (same rootMargin trick Navbar uses to
+// detect the active section), at which point it slides in from `side`,
+// holds briefly, then slides back out and never triggers again. No
+// scroll-linked position math — it's a timed enter/hold/exit sequence
+// played once, so it can't end up parked over text the way a continuously
+// visible satellite would need active clearance logic to avoid on a
+// single-column phone layout.
+//
+// A few things keep it from reading as a scripted popup: it banks into the
+// direction it's flying (tilt) instead of arriving flat-on, drifts a little
+// during the hold instead of freezing dead still, and the entry is snappier
+// than the exit (arriving with purpose, leaving unhurried) rather than one
+// symmetric spring played backwards.
+const MobileFlybySatellite = ({ id, side, top, holdMs, reduced }) => {
+  const bankTilt = side === 'right' ? -14 : 14;
+  const x = useMotionValue(side === 'right' ? FLYBY_TRAVEL : -FLYBY_TRAVEL);
+  const opacity = useMotionValue(0);
+  const tilt = useMotionValue(bankTilt);
+
+  useEffect(() => {
+    const el = document.getElementById(id);
+    if (!el) return undefined;
+    let played = false;
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (!entry.isIntersecting || played) return;
+        played = true;
+        if (reduced) {
+          x.set(0);
+          tilt.set(0);
+          animate(opacity, 0.55, { duration: 0.3 });
+          setTimeout(() => animate(opacity, 0, { duration: 0.3 }), holdMs);
+          return;
+        }
+        // Arrives banked (like it's still turning in) and levels out once
+        // it settles, rather than flying in perfectly flat.
+        animate(x, 0, { type: 'spring', stiffness: 70, damping: 15, mass: 0.7 });
+        animate(tilt, 0, { type: 'spring', stiffness: 55, damping: 10, mass: 0.6 });
+        animate(opacity, 0.65, { duration: 0.45 });
+        setTimeout(() => {
+          const exitX = side === 'right' ? FLYBY_TRAVEL : -FLYBY_TRAVEL;
+          animate(x, exitX, { type: 'spring', stiffness: 38, damping: 14, mass: 0.8 });
+          animate(tilt, bankTilt, { type: 'spring', stiffness: 38, damping: 10, mass: 0.6 });
+          animate(opacity, 0, { duration: 0.7 });
+        }, holdMs);
+      },
+      { rootMargin: '-45% 0px -45% 0px', threshold: 0 }
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [id, side, holdMs, x, opacity, tilt, bankTilt, reduced]);
+
+  return (
+    <motion.div
+      aria-hidden="true"
+      style={{
+        position: 'fixed',
+        top,
+        [side]: '-6px',
+        width: '166px',
+        height: '133px',
+        pointerEvents: 'none',
+        zIndex: 1,
+        x,
+        opacity,
+      }}
+    >
+      <div
+        style={{
+          width: '100%',
+          height: '100%',
+          animation: reduced ? 'none' : 'mobile-satellite-drift 6s ease-in-out infinite',
+        }}
+      >
+        <Suspense fallback={<SatelliteGlyph />}>
+          <Satellite3D tilt={tilt} />
+        </Suspense>
+      </div>
+    </motion.div>
+  );
+};
+
+// Positioned once, in document coordinates, inside the empty space below
+// Contact's content (its own bottom padding creates that gap — see
+// Contact.jsx). Plain `position: absolute` with no positioned ancestor, so —
+// like the Hero instance — it's pinned to a spot in the page rather than the
+// viewport and needs no per-frame scroll math at all; an IntersectionObserver
+// just fades it in when that spot scrolls into view and back out when it
+// doesn't, instead of it being visible (and needing text-clearance logic)
+// for the entire stretch of page between About and Contact.
+const MobileContactSatellite = ({ reduced }) => {
+  const [top, setTop] = useState(null);
+  const opacity = useMotionValue(0);
+
+  useEffect(() => {
+    const el = document.getElementById('contact');
+    if (!el) return undefined;
+
+    // Contact's own paddingBottom (180px, see Contact.jsx) is the empty gap
+    // below its content — center the satellite in that gap, not flush
+    // against the section's outer edge.
+    const measure = () => setTop(el.offsetTop + el.offsetHeight - 100);
+    // Measured again inside the observer callback, not just once on mount:
+    // fonts/webfont swap can still reflow the section's height after the
+    // initial mount measurement, which previously left this parked well
+    // above the real gap (over the email/LinkedIn rows instead of below
+    // the button).
+    measure();
+    window.addEventListener('resize', measure);
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        measure();
+        animate(opacity, entry.isIntersecting ? 0.55 : 0, {
+          duration: reduced ? 0 : 0.6,
+          ease: 'easeInOut',
+        });
+      },
+      { threshold: 0.2 }
+    );
+    observer.observe(el);
+
+    return () => {
+      window.removeEventListener('resize', measure);
+      observer.disconnect();
+    };
+  }, [opacity, reduced]);
+
+  if (top == null) return null;
+
+  return (
+    <motion.div
+      aria-hidden="true"
+      style={{
+        position: 'absolute',
+        top: `${top}px`,
+        left: '50%',
+        x: '-50%',
+        width: '154px',
+        height: '124px',
+        pointerEvents: 'none',
+        zIndex: 1,
+        opacity,
+      }}
+    >
+      <Suspense fallback={<SatelliteGlyph />}>
+        <Satellite3D tilt={0} />
+      </Suspense>
+    </motion.div>
+  );
+};
+
+// Swaps between the full desktop satellite and the lightweight mobile one at
+// MOBILE_BREAKPOINT, so the heavy version's scroll listeners, orbit
+// useAnimationFrame loop, and lazy-loaded 3D chunk simply never mount on a
+// phone-width viewport.
+const SatelliteRoot = () => {
+  const isMobile = useIsMobile();
+  return isMobile ? <MobileSatellite /> : <Satellite />;
+};
+
+export default SatelliteRoot;

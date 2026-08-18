@@ -15,21 +15,36 @@ import {
 // instead of blocking it.
 const Satellite3D = lazy(() => import('./Satellite3D'));
 
-// Text sits in a centered column (see .section in index.css: 1040px content +
-// 24px padding each side). Below, the satellite's horizontal position and
-// opacity are both derived from that column's actual edge instead of a fixed
-// "% from right" — so on any viewport it either clears the text with real
-// room to spare, or — when the viewport is too narrow for that — quietly
-// fades instead of sitting on top of a paragraph. This replaces the old
-// per-section "escape right when Experience is in view" trick: that only
-// covered one section and the sideways dash read as a glitch. This runs
-// continuously, everywhere, and reacts to the satellite's *actual* computed
-// position each frame (including the orbit wobble/bank drift below), not a
-// guess about where a section happens to sit.
-const CONTENT_MAX = 1088; // .section max-width (1040px) + 24px padding × 2
-const SAT_W = 260; // satellite-wrap box width
-const FADE_RANGE = 140; // px of overlap into the text column over which opacity ramps down
-const MIN_OPACITY = 0.28;
+// Text sits in a centered column (see .section in index.css: max-width
+// 1040px, box-sizing: border-box so that 1040px is the *outer* width,
+// padding included). Below, the satellite's size and horizontal position are
+// both derived from how much real space exists past that column's edge at
+// the current viewport width — on wide screens it sits at the original
+// design position at full size; on the many desktop widths (~1100–1500px)
+// where a 260px box simply does not fit beside the text, it shrinks to fit
+// the gutter instead of overlapping it. Live opacity fade is the last resort
+// for whatever residual overlap remains once it's already as small and as
+// far right as it can be. This replaces the old per-section "escape right
+// when Experience is in view" trick, which only covered one section and
+// read as a glitch.
+const CONTENT_MAX = 1040; // .section max-width, border-box (padding included)
+const SAT_W = 260; // satellite-wrap box width at full (1x) scale
+const CLEARANCE = 16; // desired min gap, in px, between the box and the text column edge
+const MIN_SCALE = 0.4; // never shrink the model past readability of its own shape
+const FADE_RANGE = 90; // px of residual overlap over which opacity ramps down
+const MIN_OPACITY = 0.15;
+
+// Shared pure functions (module scope, not hooks) so the scale and position
+// motion values below derive from the exact same geometry.
+const gutterFor = (w) => Math.max(0, w / 2 - Math.min(w, CONTENT_MAX) / 2);
+const scaleFor = (w) => Math.min(1, Math.max(MIN_SCALE, (gutterFor(w) - CLEARANCE) / SAT_W));
+const rightFor = (w) => {
+  const g = gutterFor(w);
+  const effectiveW = SAT_W * scaleFor(w);
+  const idealR = w * 0.07;
+  const maxR = Math.max(4, g - effectiveW - CLEARANCE / 2);
+  return Math.min(idealR, maxR);
+};
 
 // A wireframe satellite that treats scroll like a flight path rather than a
 // slider. Several things drive it at once, all spring-damped instead of
@@ -96,17 +111,16 @@ const Satellite = () => {
   const orbitX = useSpring(rawOrbitX, { stiffness: 20, damping: 9, mass: 1.3 });
   const orbitY = useSpring(rawOrbitY, { stiffness: 20, damping: 9, mass: 1.3 });
 
-  // Dynamic right offset: the original design position is 7% of viewport
-  // width from the edge, but that's only honored up to however much gutter
-  // actually exists beyond the text column. Where the viewport is too narrow
-  // for that (common laptop widths, ~1100–1500px), it hugs whatever margin
-  // is left instead of the fixed 7%, which — before this — was frequently
-  // deep inside the text column.
-  const rawRight = useTransform(vw, (w) => {
-    const ideal = w * 0.07;
-    const gutter = Math.max(0, w / 2 - Math.min(w, CONTENT_MAX) / 2);
-    return Math.max(12, Math.min(ideal, gutter + 12));
-  });
+  // Dynamic size + right offset: the original design is 7% of viewport width
+  // from the edge at full (1x) size, but a 260px box simply doesn't fit in
+  // the gutter on common laptop widths (~1100–1500px, where the text column
+  // still eats most of the screen). There, shrink the model down to whatever
+  // scale actually fits the remaining space (never below MIN_SCALE) and hug
+  // that space instead of the fixed 7% — so it's smaller and safely beside
+  // the text rather than full-size and on top of it.
+  const rawScale = useTransform(vw, scaleFor);
+  const scale = useSpring(rawScale, { stiffness: 70, damping: 22 });
+  const rawRight = useTransform(vw, rightFor);
   const right = useSpring(rawRight, { stiffness: 60, damping: 20 });
   const rightPx = useTransform(right, (r) => `${r}px`);
 
@@ -142,7 +156,11 @@ const Satellite = () => {
 
   if (reduced) {
     return (
-      <motion.div aria-hidden="true" className="satellite-wrap" style={{ ...wrapStyle, top: '20%', x: drift, opacity }}>
+      <motion.div
+        aria-hidden="true"
+        className="satellite-wrap"
+        style={{ ...wrapStyle, top: '20%', x: drift, scale, opacity }}
+      >
         <SatelliteGlyph />
         <style>{`@media (max-width: 720px) { .satellite-wrap { display: none; } }`}</style>
       </motion.div>
@@ -153,7 +171,7 @@ const Satellite = () => {
     <motion.div
       aria-hidden="true"
       className="satellite-wrap"
-      style={{ ...wrapStyle, y: orbitedY, x: orbitedX, opacity, willChange: 'transform' }}
+      style={{ ...wrapStyle, y: orbitedY, x: orbitedX, scale, opacity, willChange: 'transform' }}
     >
       {/* Bank angle is fed into the 3D scene as an actual roll of the model
           (see Satellite3D), not a flat CSS rotate on this container — a

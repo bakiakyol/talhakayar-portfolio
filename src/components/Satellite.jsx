@@ -398,24 +398,31 @@ const MobileSatellite = () => {
 // roughly where that section boundary's own whitespace is, without needing
 // per-waypoint pixel tuning.
 const FLYBY_WAYPOINTS = [
-  { id: 'experience', side: 'right', top: '26%' },
-  { id: 'projects', side: 'left', top: '58%' },
-  { id: 'certificates', side: 'right', top: '38%' },
+  { id: 'experience', side: 'right', top: '26%', holdMs: 1250 },
+  { id: 'projects', side: 'left', top: '58%', holdMs: 1750 },
+  { id: 'certificates', side: 'right', top: '38%', holdMs: 1500 },
 ];
 const FLYBY_TRAVEL = 220; // px off-screen to start/end from
-const FLYBY_HOLD_MS = 1400; // how long it lingers before exiting again
 
 // One-shot "flyby": hidden the entire time, until its section's boundary
 // crosses the middle of the viewport (same rootMargin trick Navbar uses to
 // detect the active section), at which point it slides in from `side`,
-// holds briefly, then slides back out the way it came and never triggers
-// again. No scroll-linked position math — it's a timed enter/hold/exit
-// sequence played once, so it can't end up parked over text the way a
-// continuously-visible satellite would need active clearance logic to avoid
-// on a single-column phone layout.
-const MobileFlybySatellite = ({ id, side, top, reduced }) => {
+// holds briefly, then slides back out and never triggers again. No
+// scroll-linked position math — it's a timed enter/hold/exit sequence
+// played once, so it can't end up parked over text the way a continuously
+// visible satellite would need active clearance logic to avoid on a
+// single-column phone layout.
+//
+// A few things keep it from reading as a scripted popup: it banks into the
+// direction it's flying (tilt) instead of arriving flat-on, drifts a little
+// during the hold instead of freezing dead still, and the entry is snappier
+// than the exit (arriving with purpose, leaving unhurried) rather than one
+// symmetric spring played backwards.
+const MobileFlybySatellite = ({ id, side, top, holdMs, reduced }) => {
+  const bankTilt = side === 'right' ? -14 : 14;
   const x = useMotionValue(side === 'right' ? FLYBY_TRAVEL : -FLYBY_TRAVEL);
   const opacity = useMotionValue(0);
+  const tilt = useMotionValue(bankTilt);
 
   useEffect(() => {
     const el = document.getElementById(id);
@@ -428,23 +435,28 @@ const MobileFlybySatellite = ({ id, side, top, reduced }) => {
         played = true;
         if (reduced) {
           x.set(0);
-          animate(opacity, 0.5, { duration: 0.3 });
-          setTimeout(() => animate(opacity, 0, { duration: 0.3 }), FLYBY_HOLD_MS);
+          tilt.set(0);
+          animate(opacity, 0.55, { duration: 0.3 });
+          setTimeout(() => animate(opacity, 0, { duration: 0.3 }), holdMs);
           return;
         }
-        animate(x, 0, { type: 'spring', stiffness: 60, damping: 14, mass: 0.7 });
-        animate(opacity, 0.55, { duration: 0.5 });
+        // Arrives banked (like it's still turning in) and levels out once
+        // it settles, rather than flying in perfectly flat.
+        animate(x, 0, { type: 'spring', stiffness: 70, damping: 15, mass: 0.7 });
+        animate(tilt, 0, { type: 'spring', stiffness: 55, damping: 10, mass: 0.6 });
+        animate(opacity, 0.65, { duration: 0.45 });
         setTimeout(() => {
           const exitX = side === 'right' ? FLYBY_TRAVEL : -FLYBY_TRAVEL;
-          animate(x, exitX, { type: 'spring', stiffness: 60, damping: 16, mass: 0.7 });
-          animate(opacity, 0, { duration: 0.5 });
-        }, FLYBY_HOLD_MS);
+          animate(x, exitX, { type: 'spring', stiffness: 38, damping: 14, mass: 0.8 });
+          animate(tilt, bankTilt, { type: 'spring', stiffness: 38, damping: 10, mass: 0.6 });
+          animate(opacity, 0, { duration: 0.7 });
+        }, holdMs);
       },
       { rootMargin: '-45% 0px -45% 0px', threshold: 0 }
     );
     observer.observe(el);
     return () => observer.disconnect();
-  }, [id, side, x, opacity, reduced]);
+  }, [id, side, holdMs, x, opacity, tilt, bankTilt, reduced]);
 
   return (
     <motion.div
@@ -453,17 +465,25 @@ const MobileFlybySatellite = ({ id, side, top, reduced }) => {
         position: 'fixed',
         top,
         [side]: '-6px',
-        width: '110px',
-        height: '90px',
+        width: '140px',
+        height: '112px',
         pointerEvents: 'none',
         zIndex: 1,
         x,
         opacity,
       }}
     >
-      <Suspense fallback={<SatelliteGlyph />}>
-        <Satellite3D tilt={0} />
-      </Suspense>
+      <div
+        style={{
+          width: '100%',
+          height: '100%',
+          animation: reduced ? 'none' : 'mobile-satellite-drift 6s ease-in-out infinite',
+        }}
+      >
+        <Suspense fallback={<SatelliteGlyph />}>
+          <Satellite3D tilt={tilt} />
+        </Suspense>
+      </div>
     </motion.div>
   );
 };

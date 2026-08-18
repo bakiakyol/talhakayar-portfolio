@@ -8,13 +8,28 @@ import {
   useMotionValue,
   useReducedMotion,
   useAnimationFrame,
-  animate,
 } from 'framer-motion';
 
 // three.js + fiber + drei are a heavy dependency for one decorative element —
 // split them into their own chunk so they load after the page's first paint
 // instead of blocking it.
 const Satellite3D = lazy(() => import('./Satellite3D'));
+
+// Text sits in a centered column (see .section in index.css: 1040px content +
+// 24px padding each side). Below, the satellite's horizontal position and
+// opacity are both derived from that column's actual edge instead of a fixed
+// "% from right" — so on any viewport it either clears the text with real
+// room to spare, or — when the viewport is too narrow for that — quietly
+// fades instead of sitting on top of a paragraph. This replaces the old
+// per-section "escape right when Experience is in view" trick: that only
+// covered one section and the sideways dash read as a glitch. This runs
+// continuously, everywhere, and reacts to the satellite's *actual* computed
+// position each frame (including the orbit wobble/bank drift below), not a
+// guess about where a section happens to sit.
+const CONTENT_MAX = 1088; // .section max-width (1040px) + 24px padding × 2
+const SAT_W = 260; // satellite-wrap box width
+const FADE_RANGE = 140; // px of overlap into the text column over which opacity ramps down
+const MIN_OPACITY = 0.28;
 
 // A wireframe satellite that treats scroll like a flight path rather than a
 // slider. Several things drive it at once, all spring-damped instead of
@@ -81,53 +96,45 @@ const Satellite = () => {
   const orbitX = useSpring(rawOrbitX, { stiffness: 20, damping: 9, mass: 1.3 });
   const orbitY = useSpring(rawOrbitY, { stiffness: 20, damping: 9, mass: 1.3 });
 
-  // When the Experience section enters the viewport the satellite "breaks
-  // orbit" and shoots off to the right — as if it has fired a thruster and
-  // departed the current track. A spring on the escape value gives it a
-  // natural ease-out as it reaches the edge and an ease-in when it returns,
-  // rather than a linear slide that would feel mechanical.
-  const rawEscape = useMotionValue(0);
-  const escapeX = useSpring(rawEscape, { stiffness: 42, damping: 18, mass: 1.1 });
-  const opacity = useMotionValue(1);
-
-  // Combine the normal velocity-driven drift with the escape thrust so both
-  // axes contribute to the horizontal position simultaneously.
-  const x = useTransform([drift, escapeX], ([d, e]) => d + e);
+  // Dynamic right offset: the original design position is 7% of viewport
+  // width from the edge, but that's only honored up to however much gutter
+  // actually exists beyond the text column. Where the viewport is too narrow
+  // for that (common laptop widths, ~1100–1500px), it hugs whatever margin
+  // is left instead of the fixed 7%, which — before this — was frequently
+  // deep inside the text column.
+  const rawRight = useTransform(vw, (w) => {
+    const ideal = w * 0.07;
+    const gutter = Math.max(0, w / 2 - Math.min(w, CONTENT_MAX) / 2);
+    return Math.max(12, Math.min(ideal, gutter + 12));
+  });
+  const right = useSpring(rawRight, { stiffness: 60, damping: 20 });
+  const rightPx = useTransform(right, (r) => `${r}px`);
 
   // Full motion (skipped for prefers-reduced-motion): the orbit wobble rides
-  // on top of drift/escape and the scroll-position spring, so the satellite
-  // circles left/right/up/down continuously instead of only sliding
-  // vertically along the right edge.
-  const orbitedX = useTransform([x, orbitX], ([base, o]) => base + o);
+  // on top of drift and the scroll-position spring, so the satellite circles
+  // left/right/up/down continuously instead of only sliding vertically along
+  // the right edge.
+  const orbitedX = useTransform([drift, orbitX], ([d, o]) => d + o);
   const orbitedY = useTransform([y, orbitY], ([base, o]) => base + o);
 
-  useEffect(() => {
-    const target = document.getElementById('experience');
-    if (!target) return undefined;
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        if (reduced) {
-          // prefers-reduced-motion: still move, just snap instantly
-          rawEscape.set(entry.isIntersecting ? 320 : 0);
-          animate(opacity, entry.isIntersecting ? 0 : 1, { duration: 0 });
-        } else {
-          rawEscape.set(entry.isIntersecting ? 320 : 0);
-          // Subtle opacity fade complements the slide — the satellite dims
-          // slightly as it leaves, and brightens when it returns.
-          animate(opacity, entry.isIntersecting ? 0.15 : 1, { duration: 0.55, ease: 'easeInOut' });
-        }
-      },
-      // rootMargin expands the viewport used for the test, so the satellite
-      // starts its escape run a little before the section's edge arrives.
-      { rootMargin: '10% 0px 10% 0px', threshold: 0 }
-    );
-    observer.observe(target);
-    return () => observer.disconnect();
-  }, [reduced, rawEscape, opacity]);
+  // Live overlap check, every frame: where the satellite's actual left edge
+  // (right offset + whatever the drift/wobble is doing right now) sits
+  // relative to the text column's actual right edge. Positive = overdrawn
+  // over text by that many px; opacity ramps down over FADE_RANGE instead of
+  // snapping, and recovers the same way once it clears again.
+  const rawOverlap = useTransform([vw, right, orbitedX], ([w, r, ox]) => {
+    const contentEdge = w / 2 + Math.min(w, CONTENT_MAX) / 2;
+    const leftEdge = w - r - SAT_W + ox;
+    return contentEdge - leftEdge;
+  });
+  const rawClearOpacity = useTransform(rawOverlap, (o) =>
+    o <= 0 ? 1 : Math.max(MIN_OPACITY, 1 - o / FADE_RANGE)
+  );
+  const opacity = useSpring(rawClearOpacity, { stiffness: 90, damping: 22 });
 
   const wrapStyle = {
     position: 'fixed',
-    right: '7%',
+    right: rightPx,
     top: 0,
     zIndex: 1,
     pointerEvents: 'none',
@@ -135,7 +142,7 @@ const Satellite = () => {
 
   if (reduced) {
     return (
-      <motion.div aria-hidden="true" className="satellite-wrap" style={{ ...wrapStyle, top: '20%', x, opacity }}>
+      <motion.div aria-hidden="true" className="satellite-wrap" style={{ ...wrapStyle, top: '20%', x: drift, opacity }}>
         <SatelliteGlyph />
         <style>{`@media (max-width: 720px) { .satellite-wrap { display: none; } }`}</style>
       </motion.div>
